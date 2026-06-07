@@ -31,13 +31,9 @@ export default function Hero() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4">
-            <button className="bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:from-[#6D28D9] hover:to-[#9333EA] text-white px-8 py-4 rounded-full font-semibold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(124,58,237,0.3)] hover:shadow-[0_0_40px_rgba(124,58,237,0.5)]">
+            <button className="bg-linear-to-r from-accent-400 to-accent-200 hover:from-accent-600 hover:to-accent-200 text-white px-8 py-4 rounded-full font-semibold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(124,58,237,0.3)] hover:shadow-[0_0_40px_rgba(124,58,237,0.5)]">
               Generate README
               <ArrowRight className="w-5 h-5" />
-            </button>
-            <button className="glass hover:bg-white/10 text-white px-8 py-4 rounded-full font-semibold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2">
-              <Play className="w-5 h-5" />
-              Watch Demo
             </button>
           </div>
         </motion.div>
