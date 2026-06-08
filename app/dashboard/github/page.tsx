@@ -307,9 +307,7 @@ function GitHubOverviewPageInner() {
   const handleConnect = () => {
     setIsConnecting(true);
     try {
-      const callbackUrl =
-        process.env.NEXT_PUBLIC_GITHUB_REDIRECT_URI ||
-        `${window.location.origin}/api/github/callback`;
+      const callbackUrl = `${window.location.origin}/api/github/callback`;
       const authUrl = buildGithubOAuthUrl(callbackUrl);
       window.location.href = authUrl;
     } catch (err: any) {
