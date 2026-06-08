@@ -2,8 +2,21 @@
 
 import { motion } from "framer-motion";
 import { ArrowRight, Play, Sparkles, Terminal } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { useRouter } from "next/navigation";
 
 export default function Hero() {
+  const { user, openAuthModal } = useAuth();
+  const router = useRouter();
+
+  const handleActionClick = () => {
+    if (user) {
+      router.push("/dashboard");
+    } else {
+      openAuthModal();
+    }
+  };
+
   return (
     <section className="relative min-h-screen flex items-center justify-center pt-24 pb-12 overflow-hidden">
       {/* Animated background blobs */}
@@ -31,8 +44,11 @@ export default function Hero() {
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4">
-            <button className="bg-linear-to-r from-accent-400 to-accent-200 hover:from-accent-600 hover:to-accent-200 text-white px-8 py-4 rounded-full font-semibold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(124,58,237,0.3)] hover:shadow-[0_0_40px_rgba(124,58,237,0.5)]">
-              Generate README
+            <button 
+              onClick={handleActionClick}
+              className="bg-linear-to-r from-accent-400 to-accent-200 hover:from-accent-600 hover:to-accent-200 text-white px-8 py-4 rounded-full font-semibold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(124,58,237,0.3)] hover:shadow-[0_0_40px_rgba(124,58,237,0.5)] cursor-pointer"
+            >
+              {user ? "Go to Dashboard" : "Generate README"}
               <ArrowRight className="w-5 h-5" />
             </button>
           </div>

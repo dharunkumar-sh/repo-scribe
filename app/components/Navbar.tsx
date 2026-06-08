@@ -66,10 +66,11 @@ export default function Navbar() {
                 className="w-10 h-10 rounded-full border border-white/20 overflow-hidden flex items-center justify-center bg-white/5 hover:border-primary transition-colors cursor-pointer"
               >
                 {user.photoURL ? (
-                  <Image
+                  <img
                     src={user.photoURL}
                     alt="Profile"
                     className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
                   />
                 ) : (
                   <span className="text-white font-bold text-sm">
@@ -88,7 +89,7 @@ export default function Navbar() {
                   >
                     <div className="px-4 py-3 border-b border-white/5 mb-2">
                       <p className="text-sm font-medium text-white truncate">
-                        {user.displayName || "Developer"}
+                        {user.displayName || user.email?.split("@")[0] || "Developer"}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
                         {user.email}
