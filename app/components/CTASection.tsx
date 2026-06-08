@@ -2,8 +2,21 @@
 
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
+import { useAuth } from "../../context/AuthContext";
+import { useRouter } from "next/navigation";
 
 export default function CTASection() {
+  const { user, openAuthModal } = useAuth();
+  const router = useRouter();
+
+  const handleActionClick = () => {
+    if (user) {
+      router.push("/dashboard");
+    } else {
+      openAuthModal();
+    }
+  };
+
   return (
     <section className="py-32 relative overflow-hidden">
       {/* Animated massive gradient background */}
@@ -36,11 +49,17 @@ export default function CTASection() {
             </p>
 
             <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <button className="bg-white text-black hover:bg-gray-200 px-8 py-4 rounded-full font-bold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-lg shadow-[0_0_20px_rgba(255,255,255,0.3)]">
-                Generate README
+              <button
+                onClick={handleActionClick}
+                className="bg-white text-black hover:bg-gray-200 px-8 py-4 rounded-full font-bold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-lg shadow-[0_0_20px_rgba(255,255,255,0.3)] cursor-pointer"
+              >
+                {user ? "Go to Dashboard" : "Generate README"}
                 <ArrowRight className="w-5 h-5" />
               </button>
-              <button className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-8 py-4 rounded-full font-bold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-lg backdrop-blur-md">
+              <button 
+                onClick={handleActionClick}
+                className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-8 py-4 rounded-full font-bold transition-all hover:scale-105 active:scale-95 flex items-center justify-center gap-2 text-lg backdrop-blur-md cursor-pointer"
+              >
                 <Sparkles className="w-5 h-5 text-[#22D3EE]" />
                 Explore Templates
               </button>

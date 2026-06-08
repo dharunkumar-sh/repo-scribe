@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { useRouter } from "next/navigation";
 import { auth, googleProvider } from "../../lib/firebase";
 import { 
   signInWithPopup, 
@@ -18,6 +19,7 @@ type AuthMode = "signin" | "signup" | "forgot";
 
 export default function AuthModal() {
   const { isAuthModalOpen, closeAuthModal } = useAuth();
+  const router = useRouter();
   const [mode, setMode] = useState<AuthMode>("signin");
   
   // Form states
@@ -83,6 +85,7 @@ export default function AuthModal() {
       await signInWithPopup(auth, googleProvider);
       toast.success("Successfully authenticated!");
       closeAuthModal();
+      router.push("/dashboard");
     } catch (error) {
       handleFirebaseError(error);
     } finally {
@@ -117,10 +120,12 @@ export default function AuthModal() {
         await createUserWithEmailAndPassword(auth, email, password);
         toast.success("Account created successfully!");
         closeAuthModal();
+        router.push("/dashboard");
       } else {
         await signInWithEmailAndPassword(auth, email, password);
         toast.success("Welcome back!");
         closeAuthModal();
+        router.push("/dashboard");
       }
     } catch (error) {
       handleFirebaseError(error);
