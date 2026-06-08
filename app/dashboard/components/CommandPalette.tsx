@@ -7,10 +7,8 @@ import {
   Search,
   Settings,
   Sparkles,
-  FolderDot,
   LayoutDashboard,
   LayoutTemplate,
-  History,
   FolderHeart,
   Star,
   BarChart3,
@@ -18,6 +16,7 @@ import {
   FileCode2,
   ChevronRight,
   ExternalLink,
+  FolderDot,
 } from "lucide-react";
 import { useDashboardStore } from "@/store/useDashboardStore";
 import { useGithubStore } from "@/store/useGithubStore";
@@ -26,9 +25,7 @@ import { GithubIcon } from "@/app/dashboard/components/ui/GithubIcon";
 const FEATURES = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, category: "Navigation" },
   { label: "Generate README", href: "/dashboard/generate", icon: Sparkles, category: "Navigation" },
-  { label: "My Projects", href: "/dashboard/projects", icon: FolderDot, category: "Navigation" },
   { label: "Templates", href: "/dashboard/templates", icon: LayoutTemplate, category: "Navigation" },
-  { label: "History", href: "/dashboard/history", icon: History, category: "Navigation" },
   { label: "Collections", href: "/dashboard/collections", icon: FolderHeart, category: "Navigation" },
   { label: "Favorites", href: "/dashboard/favorites", icon: Star, category: "Navigation" },
   { label: "GitHub Profile Manager", href: "/dashboard/github", icon: GithubIcon, category: "GitHub Workspace" },
