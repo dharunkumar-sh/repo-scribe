@@ -1,69 +1,44 @@
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
+import { useHistory } from "@/context/HistoryContext";
 import { GlassCard } from "./components/ui/GlassCard";
 import { AnimatedStat } from "./components/ui/AnimatedStat";
 import { Badge } from "./components/ui/Badge";
 import { GithubIcon } from "@/app/dashboard/components/ui/GithubIcon";
-import { Upload, FileText, ArrowRight, Clock, Star, GitMerge, FileCode2 } from "lucide-react";
+import { ArrowRight, Clock, Star, FileText, GitMerge, FileCode2, BarChart3, LayoutTemplate, Activity } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { formatDistanceToNow } from "date-fns";
 
 const quickActions = [
   {
-    title: "Generate from GitHub",
+    title: "Generate README",
     description: "Paste a URL and let AI do the rest.",
-    icon: GithubIcon,
+    icon: SparklesIcon,
     color: "from-[#7C3AED] to-[#A855F7]",
     href: "/dashboard/generate",
   },
   {
-    title: "Import Repository",
-    description: "Connect and sync your repositories.",
-    icon: GitMerge,
+    title: "Sync GitHub Profile",
+    description: "Manage repositories and sync stats.",
+    icon: GithubIcon,
     color: "from-[#22D3EE] to-[#3B82F6]",
-    href: "/dashboard/projects",
-  },
-  {
-    title: "Upload Project ZIP",
-    description: "Generate READMEs from local files.",
-    icon: Upload,
-    color: "from-[#F59E0B] to-[#EF4444]",
-    href: "/dashboard/upload",
+    href: "/dashboard/github",
   },
   {
     title: "Browse Templates",
     description: "Start with a professionally designed layout.",
-    icon: FileText,
+    icon: LayoutTemplate,
     color: "from-[#10B981] to-[#059669]",
     href: "/dashboard/templates",
   },
-];
-
-const recentActivity = [
   {
-    title: "Generated README for repo-scribe",
-    time: "2 hours ago",
-    icon: FileCode2,
-    status: "success",
-  },
-  {
-    title: "Connected GitHub Account",
-    time: "5 hours ago",
-    icon: GithubIcon,
-    status: "default",
-  },
-  {
-    title: "Edited 'Startup Template'",
-    time: "Yesterday",
-    icon: FileText,
-    status: "accent",
-  },
-  {
-    title: "Starred 'Open Source Template'",
-    time: "2 days ago",
-    icon: Star,
-    status: "warning",
+    title: "View Analytics",
+    description: "Track your contributions and languages.",
+    icon: BarChart3,
+    color: "from-[#F59E0B] to-[#EF4444]",
+    href: "/dashboard/analytics",
   },
 ];
 
@@ -82,8 +57,26 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.5, ease: "easeOut" as const } },
 };
 
+function getActivityIcon(type: string) {
+  switch (type) {
+    case "generate":
+      return <FileCode2 className="w-4 h-4 text-gray-400" />;
+    case "github_connect":
+      return <GithubIcon className="w-4 h-4 text-gray-400" />;
+    case "edit_template":
+      return <FileText className="w-4 h-4 text-gray-400" />;
+    case "collection_add":
+      return <GitMerge className="w-4 h-4 text-gray-400" />;
+    case "favourite":
+      return <Star className="w-4 h-4 text-gray-400" />;
+    default:
+      return <Activity className="w-4 h-4 text-gray-400" />;
+  }
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { activities, loading } = useHistory();
   
   const firstName = user?.displayName?.split(" ")[0] || user?.email?.split("@")[0] || "Developer";
 
@@ -158,34 +151,44 @@ export default function DashboardPage() {
           </div>
         </motion.div>
 
-        {/* Recent Activity */}
         <motion.div variants={itemVariants} className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-xl font-semibold">Recent Activity</h2>
-            <Link href="/dashboard/history" className="text-sm text-[#7C3AED] hover:text-[#A855F7] transition-colors">View all</Link>
           </div>
           <GlassCard className="p-5">
             <div className="space-y-6">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="flex gap-4 relative">
-                  {index !== recentActivity.length - 1 && (
-                    <div className="absolute left-4 top-10 bottom-[-24px] w-px bg-white/10" />
-                  )}
-                  <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0 z-10">
-                    <activity.icon className="w-4 h-4 text-gray-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-white">{activity.title}</p>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Clock className="w-3 h-3 text-gray-500" />
-                      <span className="text-xs text-gray-500">{activity.time}</span>
-                      <Badge variant={activity.status as any} className="ml-2 scale-90 origin-left">
-                        {activity.status === 'default' ? 'info' : activity.status}
-                      </Badge>
+              {loading ? (
+                <div className="flex justify-center py-6">
+                  <div className="w-6 h-6 border-2 border-[#7C3AED] border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : activities.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-6">No recent activity.</p>
+              ) : (
+                activities.map((activity, index) => (
+                  <div key={activity.id} className="flex gap-4 relative">
+                    {index !== activities.length - 1 && (
+                      <div className="absolute left-4 top-10 bottom-[-24px] w-px bg-white/10" />
+                    )}
+                    <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center shrink-0 z-10">
+                      {getActivityIcon(activity.type)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-white">{activity.title}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Clock className="w-3 h-3 text-gray-500" />
+                        <span className="text-xs text-gray-500">
+                          {activity.createdAt 
+                            ? formatDistanceToNow(activity.createdAt.toDate(), { addSuffix: true }) 
+                            : "Just now"}
+                        </span>
+                        <Badge variant={activity.status as any} className="ml-2 scale-90 origin-left">
+                          {activity.status === 'default' ? 'info' : activity.status}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </GlassCard>
         </motion.div>

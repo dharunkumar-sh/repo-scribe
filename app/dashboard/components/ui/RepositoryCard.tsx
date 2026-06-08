@@ -1,6 +1,6 @@
-import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import { GithubRepo } from "@/lib/github";
-import { Star, GitFork, ExternalLink, ShieldAlert, Sparkles, BookMarked, Activity } from "lucide-react";
+import { Star, GitFork, Sparkles, BookMarked, Activity } from "lucide-react";
 import { GlassCard } from "./GlassCard";
 
 interface RepositoryCardProps {
@@ -9,6 +9,8 @@ interface RepositoryCardProps {
 }
 
 export function RepositoryCard({ repo, healthScore = 70 }: RepositoryCardProps) {
+  const router = useRouter();
+
   // A simple mock calculation or display logic for Health
   const getHealthColor = (score: number) => {
     if (score >= 90) return "text-[#10B981] bg-[#10B981]/10 border-[#10B981]/20";
@@ -29,6 +31,10 @@ export function RepositoryCard({ repo, healthScore = 70 }: RepositoryCardProps) 
       HTML: "bg-[#E34C26]",
     };
     return colors[lang] || "bg-[#7C3AED]";
+  };
+
+  const handleGenerateClick = () => {
+    router.push(`/dashboard/generate?url=${encodeURIComponent(repo.html_url)}`);
   };
 
   return (
@@ -98,7 +104,11 @@ export function RepositoryCard({ repo, healthScore = 70 }: RepositoryCardProps) 
         </div>
 
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button className="p-1.5 bg-[#7C3AED]/10 text-[#A855F7] rounded hover:bg-[#7C3AED]/20 transition-colors" title="Generate README">
+          <button 
+            onClick={handleGenerateClick}
+            className="p-1.5 bg-[#7C3AED]/10 text-[#A855F7] rounded hover:bg-[#7C3AED]/20 transition-colors" 
+            title="Generate README"
+          >
             <Sparkles className="w-4 h-4" />
           </button>
         </div>

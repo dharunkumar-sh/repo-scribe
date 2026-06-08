@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "../context/AuthContext";
+import { HistoryProvider } from "../context/HistoryContext";
 import { Toaster } from "react-hot-toast";
 import AuthModal from "./components/AuthModal";
 
@@ -11,8 +12,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "RepoScribe | Turn Any GitHub Repository Into a Stunning README",
+  title: "RepoScribe AI | Turn Any GitHub Repository Into a Stunning README",
   description: "Paste your GitHub repository URL and let AI analyze your project to generate a polished, professional README in seconds.",
+  icons: {
+    icon: "/logo.svg",
+  },
 };
 
 export default function RootLayout({
@@ -22,20 +26,22 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`${inter.variable} dark antialiased`} style={{ colorScheme: 'dark' }}>
-      <body className="min-h-full flex flex-col bg-background text-[#FAFAFA] font-sans selection:bg-[#7C3AED] selection:text-white">
+      <body className="min-h-full flex flex-col bg-background text-foreground font-sans selection:bg-primary selection:text-white">
         <AuthProvider>
-          {children}
-          <AuthModal />
-          <Toaster 
-            position="bottom-right" 
-            toastOptions={{
-              style: {
-                background: '#0a0a0c',
-                color: '#fff',
-                border: '1px solid rgba(255,255,255,0.1)'
-              }
-            }} 
-          />
+          <HistoryProvider>
+            {children}
+            <AuthModal />
+            <Toaster 
+              position="bottom-right" 
+              toastOptions={{
+                style: {
+                  background: '#0a0a0c',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.1)'
+                }
+              }} 
+            />
+          </HistoryProvider>
         </AuthProvider>
       </body>
     </html>

@@ -4,9 +4,18 @@ import { useEffect, useState, useMemo, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
-  ExternalLink, Star, Users, GitFork, RefreshCw,
-  Sparkles, TrendingUp, BookMarked, ShieldCheck, AlertCircle,
+  ExternalLink,
+  Star,
+  Users,
+  GitFork,
+  RefreshCw,
+  Sparkles,
+  TrendingUp,
+  BookMarked,
+  ShieldCheck,
+  AlertCircle,
   Plug,
+  Code2,
 } from "lucide-react";
 import { GlassCard } from "../components/ui/GlassCard";
 import { AnimatedStat } from "../components/ui/AnimatedStat";
@@ -85,10 +94,12 @@ function ConnectScreen({
           </div>
         </div>
 
-        <h2 className="text-2xl font-bold text-white mb-2">Connect GitHub Profile Manager</h2>
+        <h2 className="text-2xl font-bold text-white mb-2">
+          Connect GitHub Profile Manager
+        </h2>
         <p className="text-gray-400 text-sm leading-relaxed mb-8">
-          Authorize the RepoScribe GitHub App to sync your repositories, view analytics,
-          and get AI-powered profile insights — all in one place.
+          Authorize the RepoScribe GitHub App to sync your repositories, view
+          analytics, and get AI-powered profile insights — all in one place.
         </p>
 
         {/* What we access */}
@@ -98,9 +109,18 @@ function ConnectScreen({
           </p>
           <ul className="space-y-2.5">
             {[
-              { scope: "repo", description: "Read your public & private repositories" },
-              { scope: "read:user", description: "Read your GitHub profile information" },
-              { scope: "user:email", description: "Access your verified email address" },
+              {
+                scope: "repo",
+                description: "Read your public & private repositories",
+              },
+              {
+                scope: "read:user",
+                description: "Read your GitHub profile information",
+              },
+              {
+                scope: "user:email",
+                description: "Access your verified email address",
+              },
             ].map(({ scope, description }) => (
               <li key={scope} className="flex items-center gap-3">
                 <span className="px-2 py-0.5 bg-[#22D3EE]/10 border border-[#22D3EE]/20 text-[#22D3EE] rounded-md font-mono text-xs shrink-0">
@@ -153,8 +173,16 @@ function ConnectScreen({
 // ──────────────────────────────────────────────
 function GitHubOverviewPageInner() {
   const {
-    token, profile, repos, isConnected,
-    setToken, setProfile, setRepos, setLoading, setError, disconnect,
+    token,
+    profile,
+    repos,
+    isConnected,
+    setToken,
+    setProfile,
+    setRepos,
+    setLoading,
+    setError,
+    disconnect,
   } = useGithubStore();
 
   const searchParams = useSearchParams();
@@ -165,27 +193,75 @@ function GitHubOverviewPageInner() {
   const [oauthError, setOauthError] = useState<string | null>(null);
 
   // ── Compute real stats ──
-  const totalStars = useMemo(() => repos.reduce((acc, r) => acc + r.stargazers_count, 0), [repos]);
-  const totalForks = useMemo(() => repos.reduce((acc, r) => acc + r.forks_count, 0), [repos]);
+  const totalStars = useMemo(
+    () => repos.reduce((acc, r) => acc + r.stargazers_count, 0),
+    [repos],
+  );
+  const totalForks = useMemo(
+    () => repos.reduce((acc, r) => acc + r.forks_count, 0),
+    [repos],
+  );
+
+  const languageStats = useMemo(() => {
+    const counts: Record<string, number> = {};
+    repos.forEach((repo) => {
+      if (repo.language) {
+        counts[repo.language] = (counts[repo.language] || 0) + 1;
+      }
+    });
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    const colors = ["#7C3AED", "#22D3EE", "#10B981", "#F59E0B"];
+    return Object.entries(counts)
+      .map(([lang, count], index) => ({
+        name: lang,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+        count,
+        color: colors[index % colors.length],
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 4);
+  }, [repos]);
+
+  const topRepos = useMemo(() => {
+    return [...repos]
+      .sort((a, b) => b.stargazers_count - a.stargazers_count || b.forks_count - a.forks_count)
+      .slice(0, 3);
+  }, [repos]);
+
+  const advancedMetrics = useMemo(() => {
+    const total = repos.length || 1;
+    const withLicense = repos.filter((r) => r.license).length;
+    const withDesc = repos.filter((r) => r.description).length;
+    const isFork = repos.filter((r) => r.fork).length;
+
+    return {
+      licenseRate: Math.round((withLicense / total) * 100),
+      descRate: Math.round((withDesc / total) * 100),
+      forkRate: Math.round((isFork / total) * 100),
+    };
+  }, [repos]);
 
   // ── Core sync ──
-  const syncGithubData = useCallback(async (accessToken: string, throwOnError = false, signal?: AbortSignal) => {
-    setIsSyncing(true);
-    try {
-      const [profileData, reposData] = await Promise.all([
-        fetchGithubProfile(accessToken, signal),
-        fetchGithubRepos(accessToken, signal),
-      ]);
-      setProfile(profileData);
-      setRepos(reposData);
-    } catch (error: any) {
-      if (error.name === 'AbortError') return;
-      toast.error("Failed to sync GitHub data. Try reconnecting.");
-      if (throwOnError) throw error;
-    } finally {
-      setIsSyncing(false);
-    }
-  }, [setProfile, setRepos]);
+  const syncGithubData = useCallback(
+    async (accessToken: string, throwOnError = false, signal?: AbortSignal) => {
+      setIsSyncing(true);
+      try {
+        const [profileData, reposData] = await Promise.all([
+          fetchGithubProfile(accessToken, signal),
+          fetchGithubRepos(accessToken, signal),
+        ]);
+        setProfile(profileData);
+        setRepos(reposData);
+      } catch (error: any) {
+        if (error.name === "AbortError") return;
+        toast.error("Failed to sync GitHub data. Try reconnecting.");
+        if (throwOnError) throw error;
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [setProfile, setRepos],
+  );
 
   // ── On mount: handle OAuth callback ──
   useEffect(() => {
@@ -224,14 +300,16 @@ function GitHubOverviewPageInner() {
     return () => {
       controller.abort();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Redirect to GitHub OAuth ──
   const handleConnect = () => {
     setIsConnecting(true);
     try {
-      const callbackUrl = process.env.NEXT_PUBLIC_GITHUB_REDIRECT_URI || `${window.location.origin}/api/github/callback`;
+      const callbackUrl =
+        process.env.NEXT_PUBLIC_GITHUB_REDIRECT_URI ||
+        `${window.location.origin}/api/github/callback`;
       const authUrl = buildGithubOAuthUrl(callbackUrl);
       window.location.href = authUrl;
     } catch (err: any) {
@@ -275,22 +353,21 @@ function GitHubOverviewPageInner() {
 
         <div className="flex flex-col md:flex-row gap-6 items-start md:items-center justify-between">
           <div className="flex items-center gap-5">
-            <div className="w-20 h-20 rounded-full border-2 border-white/10 overflow-hidden relative">
-              <Image src={profile.avatar_url} alt={profile.login} fill className="object-cover" />
+            <div className="w-20 h-20 rounded-full border-2 border-white/10 overflow-hidden relative shrink-0">
+              <Image
+                src={profile.avatar_url}
+                alt={profile.login}
+                fill
+                className="object-cover"
+              />
             </div>
             <div>
               <h2 className="text-2xl font-bold text-white flex items-center gap-2">
                 {profile.name || profile.login}
-                <a
-                  href={profile.html_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                </a>
               </h2>
-              <p className="text-gray-400 text-sm">{profile.bio || "No bio provided"}</p>
+              <p className="text-gray-400 text-sm">
+                {profile.bio || "No bio provided"}
+              </p>
               <div className="flex items-center gap-4 mt-2 text-xs text-gray-500 font-medium">
                 <span className="flex items-center gap-1">
                   <Users className="w-3 h-3" /> {profile.followers} followers
@@ -315,7 +392,9 @@ function GitHubOverviewPageInner() {
               disabled={isSyncing}
               className="flex-1 md:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors disabled:opacity-50"
             >
-              <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
+              <RefreshCw
+                className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`}
+              />
               Sync
             </button>
             <button
@@ -335,21 +414,30 @@ function GitHubOverviewPageInner() {
             <BookMarked className="w-4 h-4 text-[#7C3AED]" />
             <span className="text-sm font-medium">Public Repos</span>
           </div>
-          <AnimatedStat value={profile.public_repos} className="text-3xl font-bold text-white" />
+          <AnimatedStat
+            value={profile.public_repos}
+            className="text-3xl font-bold text-white"
+          />
         </GlassCard>
         <GlassCard className="p-5 flex flex-col justify-center">
           <div className="flex items-center gap-2 text-gray-400 mb-2">
             <Star className="w-4 h-4 text-[#EAB308]" />
             <span className="text-sm font-medium">Stars Earned</span>
           </div>
-          <AnimatedStat value={totalStars} className="text-3xl font-bold text-white" />
+          <AnimatedStat
+            value={totalStars}
+            className="text-3xl font-bold text-white"
+          />
         </GlassCard>
         <GlassCard className="p-5 flex flex-col justify-center">
           <div className="flex items-center gap-2 text-gray-400 mb-2">
             <GitFork className="w-4 h-4 text-[#22D3EE]" />
             <span className="text-sm font-medium">Total Forks</span>
           </div>
-          <AnimatedStat value={totalForks} className="text-3xl font-bold text-white" />
+          <AnimatedStat
+            value={totalForks}
+            className="text-3xl font-bold text-white"
+          />
         </GlassCard>
         <GlassCard className="p-5 flex flex-col justify-center">
           <div className="flex items-center gap-2 text-gray-400 mb-2">
@@ -357,13 +445,118 @@ function GitHubOverviewPageInner() {
             <span className="text-sm font-medium">Profile Score</span>
           </div>
           <div className="flex items-end gap-1">
-            <AnimatedStat value={85} className="text-3xl font-bold text-white" />
+            <AnimatedStat
+              value={85}
+              className="text-3xl font-bold text-white"
+            />
             <span className="text-gray-500 text-sm mb-1">/100</span>
           </div>
         </GlassCard>
       </div>
 
-      {/* Main Content Area */}
+      {/* Analytics Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Top Repositories */}
+        <div className="lg:col-span-2 space-y-6">
+          <GlassCard className="p-6">
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-6">
+              <BookMarked className="w-5 h-5 text-[#7C3AED]" />
+              Top Repositories by Stars
+            </h3>
+            <div className="space-y-4">
+              {topRepos.length === 0 ? (
+                <p className="text-gray-500 text-sm py-4">No repositories found.</p>
+              ) : (
+                topRepos.map((repo) => (
+                  <div key={repo.id} className="p-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-between hover:bg-white/[0.08] transition-colors">
+                    <div className="space-y-1.5 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-white truncate">{repo.name}</span>
+                        {repo.language && (
+                          <span className="px-2 py-0.5 bg-white/10 text-gray-300 text-[10px] font-medium rounded-full">
+                            {repo.language}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-400 truncate max-w-[320px] sm:max-w-[450px]">
+                        {repo.description || "No description provided"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0 pl-4">
+                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <Star className="w-3.5 h-3.5 text-[#EAB308]" />
+                        <span>{repo.stargazers_count}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                        <GitFork className="w-3.5 h-3.5 text-[#22D3EE]" />
+                        <span>{repo.forks_count}</span>
+                      </div>
+                      <a
+                        href={repo.html_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-1.5 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </GlassCard>
+        </div>
+
+        {/* Languages & Advanced Metrics */}
+        <div className="space-y-6">
+          <GlassCard className="p-6">
+            <h3 className="text-lg font-semibold flex items-center gap-2 mb-6">
+              <Code2 className="w-5 h-5 text-[#22D3EE]" />
+              Languages Distribution
+            </h3>
+            <div className="space-y-4">
+              {languageStats.length === 0 ? (
+                <p className="text-gray-500 text-sm py-4">No language data.</p>
+              ) : (
+                languageStats.map((lang) => (
+                  <div key={lang.name}>
+                    <div className="flex justify-between text-xs mb-1.5">
+                      <span className="text-gray-300 font-medium">{lang.name}</span>
+                      <span className="text-gray-400">{lang.percentage}%</span>
+                    </div>
+                    <div className="w-full bg-white/5 rounded-full h-1.5">
+                      <div
+                        className="h-1.5 rounded-full"
+                        style={{
+                          width: `${lang.percentage}%`,
+                          backgroundColor: lang.color,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-white/5 grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">
+                  License Rate
+                </p>
+                <p className="text-xl font-bold text-white">{advancedMetrics.licenseRate}%</p>
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">
+                  Descriptions
+                </p>
+                <p className="text-xl font-bold text-white">{advancedMetrics.descRate}%</p>
+              </div>
+            </div>
+          </GlassCard>
+        </div>
+      </div>
+
+      {/* Audit & Recommendations Area */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* AI Profile Score */}
         <div className="lg:col-span-2 space-y-6">
@@ -371,7 +564,7 @@ function GitHubOverviewPageInner() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-[#7C3AED]" />
-                AI Profile Score
+                AI Profile Score Analysis
               </h3>
               <span className="px-3 py-1 bg-[#10B981]/10 text-[#10B981] rounded-full text-xs font-medium border border-[#10B981]/20">
                 Excellent
@@ -379,9 +572,24 @@ function GitHubOverviewPageInner() {
             </div>
             <div className="space-y-5">
               {[
-                { label: "Documentation (READMEs)", pct: 70, from: "#7C3AED", to: "#A855F7" },
-                { label: "Repository Health",        pct: 85, from: "#22D3EE", to: "#3B82F6" },
-                { label: "Activity & Consistency",   pct: 92, from: "#10B981", to: "#059669" },
+                {
+                  label: "Documentation (READMEs)",
+                  pct: 70,
+                  from: "#7C3AED",
+                  to: "#A855F7",
+                },
+                {
+                  label: "Repository Health",
+                  pct: 85,
+                  from: "#22D3EE",
+                  to: "#3B82F6",
+                },
+                {
+                  label: "Activity & Consistency",
+                  pct: 92,
+                  from: "#10B981",
+                  to: "#059669",
+                },
               ].map(({ label, pct, from, to }) => (
                 <div key={label}>
                   <div className="flex justify-between text-sm mb-1.5">
@@ -391,7 +599,10 @@ function GitHubOverviewPageInner() {
                   <div className="w-full bg-white/5 rounded-full h-2">
                     <div
                       className="h-2 rounded-full"
-                      style={{ width: `${pct}%`, background: `linear-gradient(to right, ${from}, ${to})` }}
+                      style={{
+                        width: `${pct}%`,
+                        background: `linear-gradient(to right, ${from}, ${to})`,
+                      }}
                     />
                   </div>
                 </div>
@@ -410,7 +621,8 @@ function GitHubOverviewPageInner() {
             <ul className="space-y-3">
               <li className="p-3 bg-white/5 border border-white/10 rounded-lg">
                 <p className="text-sm text-gray-300 mb-2">
-                  Your profile is missing a custom README — crucial for a strong portfolio.
+                  Your profile is missing a custom README — crucial for a strong
+                  portfolio.
                 </p>
                 <button className="text-xs font-medium text-[#7C3AED] hover:text-[#A855F7] flex items-center gap-1 transition-colors">
                   Generate Profile README <ExternalLink className="w-3 h-3" />
@@ -418,7 +630,8 @@ function GitHubOverviewPageInner() {
               </li>
               <li className="p-3 bg-white/5 border border-white/10 rounded-lg">
                 <p className="text-sm text-gray-300 mb-2">
-                  {repos.filter((r) => !r.description).length} repositories have no description.
+                  {repos.filter((r) => !r.description).length} repositories have
+                  no description.
                 </p>
                 <button className="text-xs font-medium text-[#7C3AED] hover:text-[#A855F7] flex items-center gap-1 transition-colors">
                   Improve Descriptions <ExternalLink className="w-3 h-3" />
@@ -426,7 +639,8 @@ function GitHubOverviewPageInner() {
               </li>
               <li className="p-3 bg-white/5 border border-white/10 rounded-lg">
                 <p className="text-sm text-gray-300 mb-2">
-                  Add topics to your latest repository for better discoverability.
+                  Add topics to your latest repository for better
+                  discoverability.
                 </p>
                 <button className="text-xs font-medium text-[#7C3AED] hover:text-[#A855F7] flex items-center gap-1 transition-colors">
                   Add Topics <ExternalLink className="w-3 h-3" />
