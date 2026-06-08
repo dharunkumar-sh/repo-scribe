@@ -204,17 +204,20 @@ export default function GeneratePage() {
         items = docSnap.data().items;
       }
 
-      items.push({
+      // Firestore does not accept `undefined` — use null for optional fields
+      const newItem = {
         id: newId,
         title: title.trim(),
-        description: description.trim(),
+        description: description.trim() || null,
         markdown: streamedMarkdown,
-        repoUrl: url || undefined,
+        repoUrl: url || null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         isFavorite,
         collectionIds: [],
-      });
+      };
+
+      items.push(newItem);
 
       await setDoc(docRef, { items }, { merge: true });
       toast.success("README saved successfully!");

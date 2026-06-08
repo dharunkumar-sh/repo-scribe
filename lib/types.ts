@@ -1,9 +1,9 @@
 export interface SavedReadme {
   id: string;
   title: string;
-  description: string;
+  description: string | null;
   markdown: string;
-  repoUrl?: string;
+  repoUrl?: string | null;
   createdAt: string;
   updatedAt: string;
   isFavorite: boolean;
