@@ -22,7 +22,6 @@ import { AnimatedStat } from "../components/ui/AnimatedStat";
 import { GithubIcon } from "../components/ui/GithubIcon";
 import { useGithubStore } from "@/store/useGithubStore";
 import { fetchGithubProfile, fetchGithubRepos } from "@/lib/github";
-import { buildGithubOAuthUrl } from "@/lib/githubOAuth";
 import toast from "react-hot-toast";
 import Image from "next/image";
 import Link from "next/link";
@@ -304,13 +303,17 @@ function GitHubOverviewPageInner() {
   }, []);
 
   // ── Redirect to GitHub OAuth ──
-  const handleConnect = () => {
+  // Calls the server-side initiate endpoint which generates state + PKCE,
+  // stores them in HttpOnly cookies, and returns the full authorization URL.
+  const handleConnect = async () => {
     setIsConnecting(true);
     try {
-      const callbackUrl =
-        process.env.NEXT_PUBLIC_GITHUB_REDIRECT_URI ||
-        `${window.location.origin}/api/github/callback`;
-      const authUrl = buildGithubOAuthUrl(callbackUrl);
+      const res = await fetch("/api/github/initiate");
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to start GitHub authorization.");
+      }
+      const { authUrl } = await res.json();
       window.location.href = authUrl;
     } catch (err: any) {
       toast.error(err.message || "Could not initiate GitHub authorization.");
