@@ -8,7 +8,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { GlassCard } from "../../components/ui/GlassCard";
 import { Collection } from "@/lib/types";
 import { SavedReadme } from "@/lib/types";
-import { ArrowLeft, FolderOpen, FileCode2, Calendar, ExternalLink } from "lucide-react";
+import { ArrowLeft, FolderOpen, FileCode2, Calendar } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import toast from "react-hot-toast";
@@ -50,8 +50,10 @@ export default function CollectionDetailPage() {
         const readmeSnap = await getDoc(readmeRef);
         if (active && readmeSnap.exists()) {
           const allReadmes: SavedReadme[] = readmeSnap.data().items || [];
-          const filtered = allReadmes.filter((r) =>
-            Array.isArray(r.collectionIds) && r.collectionIds.includes(String(id))
+          const filtered = allReadmes.filter(
+            (r) =>
+              Array.isArray(r.collectionIds) &&
+              r.collectionIds.includes(String(id)),
           );
           setReadmes(filtered);
         }
@@ -63,7 +65,9 @@ export default function CollectionDetailPage() {
     };
 
     fetchData();
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [user, id, router]);
 
   if (isLoading) {
@@ -89,13 +93,16 @@ export default function CollectionDetailPage() {
 
       {/* Header */}
       <div className="flex items-center gap-4">
-        <div className={`p-4 rounded-2xl bg-white/5 border border-white/10 ${collection.iconColor}`}>
+        <div
+          className={`p-4 rounded-2xl bg-white/5 border border-white/10 ${collection.iconColor}`}
+        >
           <FolderOpen className="w-8 h-8" />
         </div>
         <div>
           <h1 className="text-3xl font-bold text-white">{collection.name}</h1>
           <p className="text-gray-400 mt-1">
-            {readmes.length} {readmes.length === 1 ? "README" : "READMEs"} · Updated {collection.lastUpdated}
+            {readmes.length} {readmes.length === 1 ? "README" : "READMEs"} ·
+            Updated {collection.lastUpdated}
           </p>
         </div>
       </div>
@@ -104,8 +111,12 @@ export default function CollectionDetailPage() {
       {readmes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 border border-dashed border-white/10 rounded-2xl bg-white/5">
           <FileCode2 className="w-12 h-12 text-gray-600 mb-4" />
-          <p className="text-gray-400 text-lg mb-1">No READMEs in this collection yet</p>
-          <p className="text-gray-600 text-sm">Generate a README and save it to this collection.</p>
+          <p className="text-gray-400 text-lg mb-1">
+            No READMEs in this collection yet
+          </p>
+          <p className="text-gray-600 text-sm">
+            Generate a README and save it to this collection.
+          </p>
           <Link
             href="/dashboard/generate"
             className="mt-6 px-4 py-2 bg-gradient-to-r from-[#7C3AED] to-[#A855F7] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-all"
@@ -123,7 +134,10 @@ export default function CollectionDetailPage() {
               transition={{ delay: i * 0.05 }}
             >
               <Link href={`/dashboard/readme?id=${readme.id}`}>
-                <GlassCard hoverEffect className="p-5 group flex flex-col gap-3">
+                <GlassCard
+                  hoverEffect
+                  className="p-5 group flex flex-col gap-3"
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="p-2 rounded-xl bg-white/5 border border-white/10">
@@ -140,15 +154,18 @@ export default function CollectionDetailPage() {
                         )}
                       </div>
                     </div>
-                    <ExternalLink className="w-4 h-4 text-gray-600 group-hover:text-gray-400 transition-colors shrink-0 mt-1" />
                   </div>
                   {readme.description && (
-                    <p className="text-sm text-gray-400 line-clamp-2">{readme.description}</p>
+                    <p className="text-sm text-gray-400 line-clamp-2">
+                      {readme.description}
+                    </p>
                   )}
                   <div className="flex items-center gap-1.5 text-xs text-gray-600 mt-auto pt-2 border-t border-white/5">
                     <Calendar className="w-3 h-3" />
                     {readme.createdAt
-                      ? formatDistanceToNow(new Date(readme.createdAt), { addSuffix: true })
+                      ? formatDistanceToNow(new Date(readme.createdAt), {
+                          addSuffix: true,
+                        })
                       : "Unknown date"}
                   </div>
                 </GlassCard>

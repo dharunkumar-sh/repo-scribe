@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { GlassCard } from "../components/ui/GlassCard";
 import { GithubIcon } from "@/app/dashboard/components/ui/GithubIcon";
-import { Sparkles, CheckCircle2, ArrowRight, Star, Copy, Check, Eye, Code, ArrowLeft } from "lucide-react";
+import { Sparkles, CheckCircle2, ArrowRight, Star, Copy, Check, Eye, Code, ArrowLeft, FolderPlus, Plus, Download, LayoutTemplate, X, Search } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { useHistory } from "@/context/HistoryContext";
@@ -13,6 +13,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { hasToSViolation } from "@/lib/censor";
 import ReactMarkdown from "react-markdown";
+import { Collection } from "@/lib/types";
+import { templates } from "@/lib/templates";
 
 export default function GeneratePage() {
   const { user } = useAuth();
@@ -33,6 +35,16 @@ export default function GeneratePage() {
   const [description, setDescription] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+
+  const [collections, setCollections] = useState<Collection[]>([]);
+  const [selectedCollectionId, setSelectedCollectionId] = useState<string>("");
+  const [showInlineCreate, setShowInlineCreate] = useState(false);
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
+
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  const [selectedModalTemplateId, setSelectedModalTemplateId] = useState<number | null>(null);
+  const [templateSearch, setTemplateSearch] = useState("");
 
   const abortRef = useRef<AbortController | null>(null);
   const streamContainerRef = useRef<HTMLDivElement>(null);
@@ -62,17 +74,51 @@ export default function GeneratePage() {
     };
   }, []);
 
+  // Fetch collections
+  useEffect(() => {
+    let active = true;
+    if (!user) return;
+
+    const fetchCollections = async () => {
+      try {
+        const docRef = doc(db, "collections", user.uid);
+        const docSnap = await getDoc(docRef);
+        if (active && docSnap.exists()) {
+          const data = docSnap.data();
+          if (data && Array.isArray(data.items)) {
+            setCollections(data.items);
+            if (data.items.length > 0) {
+              setSelectedCollectionId(String(data.items[0].id));
+            }
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching collections:", error);
+      }
+    };
+    fetchCollections();
+    return () => {
+      active = false;
+    };
+  }, [user]);
+
   // Auto-start if template prompt or repository URL is pre-filled
   // Guard with a ref so React StrictMode double-mount doesn't fire twice
   useEffect(() => {
     if (autoStartedRef.current) return;
     const prompt = searchParams.get("prompt");
-    const theme = searchParams.get("theme");
+    const themeParam = searchParams.get("theme");
     const repoUrl = searchParams.get("url");
-    if ((prompt && theme) || repoUrl) {
+
+    if (repoUrl && !themeParam && !prompt) {
+      // Just a URL from repositories page -> show template modal
+      setShowTemplateModal(true);
+      autoStartedRef.current = true;
+    } else if (prompt || repoUrl) {
+      // Has prompt (and maybe theme) -> just start
       autoStartedRef.current = true;
       setTimeout(() => {
-        startGeneration(undefined, prompt || undefined, theme || undefined, repoUrl || undefined);
+        startGeneration(undefined, prompt || undefined, themeParam || undefined, repoUrl || undefined);
       }, 300);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -178,6 +224,40 @@ export default function GeneratePage() {
     [url, aiPrompt, theme, addActivity]
   );
 
+  const handleCreateCollection = async () => {
+    if (!newCollectionName.trim() || !user) return;
+    setIsCreatingCollection(true);
+    try {
+      const docRef = doc(db, "collections", user.uid);
+      const docSnap = await getDoc(docRef);
+      let items: any[] = [];
+      if (docSnap.exists() && Array.isArray(docSnap.data().items)) {
+        items = docSnap.data().items;
+      }
+      const newId = Date.now();
+      const newCollection: Collection = {
+        id: newId,
+        name: newCollectionName.trim(),
+        count: 0,
+        lastUpdated: "Just now",
+        color: "from-blue-500/20 to-cyan-500/20",
+        iconColor: "text-cyan-400",
+      };
+      items.push(newCollection);
+      await setDoc(docRef, { items }, { merge: true });
+      setCollections(items);
+      setSelectedCollectionId(String(newId));
+      setNewCollectionName("");
+      setShowInlineCreate(false);
+      toast.success("Collection created!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to create collection");
+    } finally {
+      setIsCreatingCollection(false);
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) {
@@ -214,7 +294,7 @@ export default function GeneratePage() {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         isFavorite,
-        collectionIds: [],
+        collectionIds: selectedCollectionId ? [selectedCollectionId] : [],
       };
 
       items.push(newItem);
@@ -234,6 +314,20 @@ export default function GeneratePage() {
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
     toast.success("Copied to clipboard!");
+  };
+
+  const handleDownload = () => {
+    if (!streamedMarkdown) return;
+    const blob = new Blob([streamedMarkdown], { type: "text/markdown" });
+    const downloadUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = "README.md";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(downloadUrl);
+    toast.success("Downloaded README.md!");
   };
 
   const isStreaming = phase === "streaming";
@@ -280,7 +374,17 @@ export default function GeneratePage() {
             transition={{ duration: 0.4 }}
           >
             <GlassCard className="p-8">
-              <form onSubmit={(e) => startGeneration(e)} className="space-y-6">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!url && !aiPrompt) {
+                    toast.error("Please enter a GitHub repository URL.");
+                    return;
+                  }
+                  setShowTemplateModal(true);
+                }}
+                className="space-y-6"
+              >
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     GitHub Repository URL <span className="text-gray-500 font-normal">(optional if template prompt loaded)</span>
@@ -385,6 +489,13 @@ export default function GeneratePage() {
                 )}
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDownload}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download
+                </button>
                 <button
                   onClick={handleCopy}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-colors"
@@ -507,6 +618,83 @@ export default function GeneratePage() {
                       </div>
                     </div>
 
+                    <div className="pt-2 border-t border-white/5">
+                      <label className="block text-xs font-medium text-gray-400 mb-1.5">Add to Collection</label>
+                      {collections.length > 0 ? (
+                        <div className="flex gap-3">
+                          <select
+                            value={selectedCollectionId}
+                            onChange={(e) => setSelectedCollectionId(e.target.value)}
+                            className="block w-full px-4 py-2.5 bg-[#09090B] border border-white/10 rounded-xl text-white focus:ring-2 focus:ring-[#7C3AED] focus:border-transparent transition-all outline-none text-sm appearance-none"
+                          >
+                            <option value="">No Collection (General Library)</option>
+                            {collections.map(col => (
+                              <option key={col.id} value={String(col.id)}>{col.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => setShowInlineCreate(!showInlineCreate)}
+                            className="shrink-0 px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl transition-colors text-sm border border-white/10"
+                            title="New Collection"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl bg-white/5 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                          <div className="flex items-center gap-3 text-sm text-gray-400">
+                            <FolderPlus className="w-5 h-5 text-gray-500 shrink-0" />
+                            <p>You don't have any collections yet.</p>
+                          </div>
+                          {!showInlineCreate && (
+                            <button
+                              type="button"
+                              onClick={() => setShowInlineCreate(true)}
+                              className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors text-xs font-medium whitespace-nowrap"
+                            >
+                              Create Collection
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      <AnimatePresence>
+                        {showInlineCreate && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="overflow-hidden mt-3"
+                          >
+                            <div className="flex gap-2 p-3 bg-white/5 rounded-xl border border-white/10">
+                              <input
+                                type="text"
+                                value={newCollectionName}
+                                onChange={(e) => setNewCollectionName(e.target.value)}
+                                placeholder="New collection name"
+                                className="block w-full px-3 py-2 bg-[#09090B] border border-white/10 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-[#7C3AED] focus:border-transparent transition-all outline-none text-sm"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleCreateCollection();
+                                  }
+                                }}
+                              />
+                              <button
+                                type="button"
+                                onClick={handleCreateCollection}
+                                disabled={isCreatingCollection || !newCollectionName.trim()}
+                                className="shrink-0 px-3 py-2 bg-[#7C3AED] hover:bg-[#6D28D9] text-white rounded-lg transition-colors text-sm font-medium disabled:opacity-50"
+                              >
+                                {isCreatingCollection ? "Adding…" : "Add"}
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+
                     <div className="flex gap-3 pt-2">
                       <button
                         type="button"
@@ -539,6 +727,131 @@ export default function GeneratePage() {
               </motion.div>
             )}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Template Selection Modal */}
+      <AnimatePresence>
+        {showTemplateModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[#09090B]/80 backdrop-blur-md"
+              onClick={() => setShowTemplateModal(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-[#09090B] border border-white/10 w-full max-w-2xl max-h-[80vh] flex flex-col rounded-2xl overflow-hidden shadow-2xl relative z-10"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-white/5">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Select a Template</h2>
+                  <p className="text-sm text-gray-400">Choose a style for your generated README.</p>
+                </div>
+                <button
+                  onClick={() => setShowTemplateModal(false)}
+                  className="p-1 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 border-b border-white/5">
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <Search className="h-4 w-4 text-gray-500" />
+                  </div>
+                  <input
+                    type="text"
+                    value={templateSearch}
+                    onChange={(e) => setTemplateSearch(e.target.value)}
+                    placeholder="Search templates..."
+                    className="block w-full pl-9 pr-4 py-2.5 text-sm bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-[#7C3AED] focus:border-transparent transition-all outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <div
+                  onClick={() => setSelectedModalTemplateId(0)}
+                  className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start gap-4 ${
+                    selectedModalTemplateId === 0
+                      ? "bg-[#7C3AED]/10 border-[#7C3AED] shadow-[0_0_15px_rgba(124,58,237,0.15)]"
+                      : "bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10"
+                  }`}
+                >
+                  <div className={`p-2 rounded-lg ${selectedModalTemplateId === 0 ? "bg-[#7C3AED]" : "bg-white/10"}`}>
+                    <Sparkles className={`w-5 h-5 ${selectedModalTemplateId === 0 ? "text-white" : "text-gray-400"}`} />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-white">AI Auto-detect</h3>
+                    <p className="text-sm text-gray-400 mt-1">Let AI analyze the repository and choose the best layout automatically.</p>
+                  </div>
+                  {selectedModalTemplateId === 0 && <CheckCircle2 className="w-5 h-5 text-[#A855F7]" />}
+                </div>
+
+                {templates
+                  .filter((t) => t.name.toLowerCase().includes(templateSearch.toLowerCase()) || t.category.toLowerCase().includes(templateSearch.toLowerCase()))
+                  .map((template) => (
+                    <div
+                      key={template.id}
+                      onClick={() => setSelectedModalTemplateId(template.id)}
+                      className={`p-4 rounded-xl border transition-all cursor-pointer flex items-start gap-4 ${
+                        selectedModalTemplateId === template.id
+                          ? "bg-[#7C3AED]/10 border-[#7C3AED] shadow-[0_0_15px_rgba(124,58,237,0.15)]"
+                          : "bg-white/5 border-white/10 hover:border-white/20 hover:bg-white/10"
+                      }`}
+                    >
+                      <div className={`p-2 rounded-lg ${selectedModalTemplateId === template.id ? "bg-[#7C3AED]" : "bg-white/10"}`}>
+                        <LayoutTemplate className={`w-5 h-5 ${selectedModalTemplateId === template.id ? "text-white" : "text-gray-400"}`} />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-white">{template.name}</h3>
+                        <div className="text-xs text-[#A855F7] mt-0.5">{template.category}</div>
+                        <p className="text-sm text-gray-400 mt-1">{template.description}</p>
+                      </div>
+                      {selectedModalTemplateId === template.id && <CheckCircle2 className="w-5 h-5 text-[#A855F7]" />}
+                    </div>
+                  ))}
+              </div>
+
+              <div className="p-6 border-t border-white/5 flex justify-end gap-3">
+                <button
+                  onClick={() => setShowTemplateModal(false)}
+                  className="px-5 py-2.5 text-sm font-medium text-gray-400 hover:text-white transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setShowTemplateModal(false);
+                    let promptOverride: string | undefined = undefined;
+                    let themeOverride: string | undefined = undefined;
+                    if (selectedModalTemplateId === 0) {
+                      promptOverride = "AI Auto-detect: Analyze the repository content, language, features, dependencies, and overall project purpose to dynamically construct the most appropriate README template, structure, and style specifically tailored for this project's stack.";
+                      themeOverride = "Dynamic Auto-detect";
+                    } else if (selectedModalTemplateId && selectedModalTemplateId > 0) {
+                      const t = templates.find((t) => t.id === selectedModalTemplateId);
+                      if (t) {
+                        themeOverride = t.name;
+                        promptOverride = `Generate a comprehensive README following the ${t.name} theme. It should have a ${t.style} style layout and include these key aspects: ${t.description}`;
+                      }
+                    }
+                    startGeneration(undefined, promptOverride, themeOverride, url);
+                  }}
+                  disabled={selectedModalTemplateId === null}
+                  className="px-6 py-2.5 bg-gradient-to-r from-[#7C3AED] to-[#A855F7] text-white rounded-xl font-medium shadow-lg hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Generate Now
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

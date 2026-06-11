@@ -42,15 +42,44 @@ export default function CollectionsPage() {
       return;
     }
 
-    const fetchCollections = async () => {
+    const fetchData = async () => {
       try {
-        const docRef = doc(db, "collections", user.uid);
-        const docSnap = await getDoc(docRef);
-        if (active && docSnap.exists()) {
-          const data = docSnap.data();
+        const colRef = doc(db, "collections", user.uid);
+        const readmeRef = doc(db, "saved_readmes", user.uid);
+        
+        const [colSnap, readmeSnap] = await Promise.all([
+          getDoc(colRef),
+          getDoc(readmeRef)
+        ]);
+
+        let loadedCollections: Collection[] = [];
+        let allReadmes: any[] = [];
+
+        if (colSnap.exists()) {
+          const data = colSnap.data();
           if (data && Array.isArray(data.items)) {
-            setCollections(data.items);
+            loadedCollections = data.items;
           }
+        }
+
+        if (readmeSnap.exists()) {
+          const data = readmeSnap.data();
+          if (data && Array.isArray(data.items)) {
+            allReadmes = data.items;
+          }
+        }
+
+        if (active) {
+          const mapped = loadedCollections.map(col => {
+            const count = allReadmes.filter(r => 
+              Array.isArray(r.collectionIds) && r.collectionIds.includes(String(col.id))
+            ).length;
+            return {
+              ...col,
+              count
+            };
+          });
+          setCollections(mapped);
         }
       } catch (error) {
         console.error("Error fetching collections:", error);
@@ -59,7 +88,7 @@ export default function CollectionsPage() {
       }
     };
 
-    fetchCollections();
+    fetchData();
     return () => {
       active = false;
     };
