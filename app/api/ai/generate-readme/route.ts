@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY!;
-const MODEL = process.env.OPENROUTER_MODEL || "google/gemma-4-31b-it:free";
+const MODEL = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free";
 
 async function fetchGitHubRepoContext(repoUrl: string): Promise<string> {
   try {
