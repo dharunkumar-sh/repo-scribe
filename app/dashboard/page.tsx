@@ -80,6 +80,12 @@ export default function DashboardPage() {
   
   const firstName = user?.displayName?.split(" ")[0] || user?.email?.split("@")[0] || "Developer";
 
+  // Calculate dynamic stats based on recent activities
+  const readmesGenerated = activities.filter(a => a.type === 'generate').length;
+  const reposProcessed = activities.filter(a => ['generate', 'github_connect'].includes(a.type)).length;
+  const templatesEdited = activities.filter(a => a.type === 'edit_template').length;
+  const templatesFavourited = activities.filter(a => a.type === 'favourite').length;
+
   return (
     <motion.div 
       className="space-y-8"
@@ -109,17 +115,17 @@ export default function DashboardPage() {
       {/* Stats Cards */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <GlassCard className="p-6">
-          <AnimatedStat value={12} label="Repositories Processed" />
+          <AnimatedStat value={reposProcessed} label="Repositories Processed" />
         </GlassCard>
         <GlassCard className="p-6">
-          <AnimatedStat value={47} label="READMEs Generated" />
+          <AnimatedStat value={readmesGenerated} label="READMEs Generated" />
         </GlassCard>
         <GlassCard className="p-6">
-          <AnimatedStat value={3} label="GitHub Connected" />
+          <AnimatedStat value={templatesEdited} label="Templates Edited" />
         </GlassCard>
         <GlassCard className="p-6 relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#22D3EE]/20 rounded-full blur-xl pointer-events-none" />
-          <AnimatedStat value={850} label="AI Credits Remaining" />
+          <AnimatedStat value={templatesFavourited} label="Templates Favourited" />
         </GlassCard>
       </motion.div>
 

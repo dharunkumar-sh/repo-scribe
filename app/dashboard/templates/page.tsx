@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { GlassCard } from "../components/ui/GlassCard";
 import { Badge } from "../components/ui/Badge";
-import { LayoutTemplate, Star, Plus, Search } from "lucide-react";
+import { LayoutTemplate, Star, Plus, Search, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
@@ -12,8 +12,20 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { X } from "lucide-react";
 import { hasToSViolation, censorText } from "@/lib/censor";
+import ReactMarkdown from "react-markdown";
 
 import { templates, Template } from "@/lib/templates";
+
+const sampleData: Record<string, string> = {
+  classic: `# Classic Professional README\n\nStandard template featuring clean titles, installation steps, and usage guide.\n\n## 🚀 Getting Started\n\n### Prerequisites\n- Node.js >= 16\n- npm or yarn\n\n### Installation\n\`\`\`bash\nnpm install project-name\n\`\`\`\n\n## 💻 Usage\n\`\`\`javascript\nconst project = require('project-name');\nproject.start();\n\`\`\``,
+  portfolio: `# John Doe 🚀\n\nPassionate Full-Stack Developer building modern web applications.\n\n- 🔭 Currently working on Next.js projects\n- 🌱 Learning Rust and WASM\n- 💬 Ask me about React, Node, or Tailwind\n\n## 💻 Tech Stack\n- **Frontend**: React, Next.js, TypeScript, Tailwind\n- **Backend**: Node.js, GraphQL, PostgreSQL\n\n## 📊 Stats\n![GitHub stats](https://github-readme-stats.vercel.app/api?username=johndoe&show_icons=true&theme=tokyonight)`,
+  oss: `# OSS Community Hub\n\nWelcome to our Open Source project! We appreciate all contributions.\n\n## 🤝 Contributing\n\nPlease read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.\n\n## 📜 Code of Conduct\nThis project adheres to the Contributor Covenant Code of Conduct. By participating, you are expected to uphold this code.\n\n## ⚖️ License\nThis project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.`,
+  startup: `# SaaS Boilerplate\n\nThe ultimate starter kit for building your next SaaS product.\n\n## 🗺️ Product Roadmap\n- [x] Database authentication setup\n- [/] Subscription billing integration (Stripe)\n- [ ] Analytics dashboard\n\n## 👥 Team\n- **Founder**: Alice Smith\n- **Lead Dev**: Bob Jones`,
+  minimal: `# Clean Minimalist\n\n> A minimalist layout for clean projects.\n\n![Preview](https://via.placeholder.com/800x400.png?text=Project+Screenshot)\n\n## Quick Start\n\`\`\`bash\nnpx create-app\n\`\`\``,
+  academic: `# Academic Research Project\n\nImplementation of the paper: *"Deep Learning for Automated Readme Generation"*\n\n## 📝 Citation\n\`\`\`bibtex\n@article{doe2026deep,\n  title={Deep Learning for Automated Readme Generation},\n  author={Doe, John and Smith, Jane},\n  journal={arXiv preprint arXiv:2601.12345},\n  year={2026}\n}\n\`\`\`\n\n## 📊 Dataset\nWe use the RepoDocs-2026 dataset, available [here](https://example.com/dataset).`,
+  terminal: `# Creative API / SDK\n\nOfficial SDK for the RepoScribe API.\n\n## ⚙️ Installation\n\`\`\`bash\nnpm install @reposcribe/sdk\n\`\`\`\n\n## 🛠️ Usage\n\`\`\`typescript\nimport { RepoScribe } from '@reposcribe/sdk';\n\nconst client = new RepoScribe({ apiKey: 'your_api_key' });\nconst readme = await client.generate({ repoUrl: '...' });\nconsole.log(readme);\n\`\`\``,
+  chart: `# Machine Learning Hub\n\nAutomated model training and evaluation suite.\n\n## 📈 Model Performance\n\n| Model | Accuracy | F1-Score | Training Time |\n| :--- | :--- | :--- | :--- |\n| **ResNet-50** | 94.2% | 0.941 | 4.2 hours |\n| **EfficientNet** | 95.8% | 0.957 | 6.1 hours |\n| **MobileNet** | 89.1% | 0.889 | 1.5 hours |\n\n## 🧪 Evaluation\n\`\`\`bash\npython evaluate.py --model efficientnet --dataset cifar10\n\`\`\``
+};
 
 function TemplatePreview({ style }: { style: Template["style"] }) {
   switch (style) {
@@ -123,6 +135,7 @@ function TemplatePreview({ style }: { style: Template["style"] }) {
 export default function TemplatesPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [activeCategory, setActiveCategory] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
   const [favoritedIds, setFavoritedIds] = useState<number[]>([]);
@@ -348,7 +361,14 @@ export default function TemplatesPage() {
                       {template.description}
                     </p>
 
-                    <div className="mt-auto pt-4 border-t border-white/5">
+                    <div className="mt-auto pt-4 border-t border-white/5 flex gap-2">
+                      <button
+                        onClick={() => setPreviewTemplate(template)}
+                        className="flex-1 text-sm font-medium text-gray-300 hover:text-white bg-white/5 hover:bg-white/10 py-2.5 rounded-xl transition-all border border-white/10 flex items-center justify-center gap-1.5 cursor-pointer"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Preview
+                      </button>
                       <button
                         onClick={() => {
                           const prompt = `Generate a comprehensive README following the ${template.name} theme. It should have a ${template.style} style layout and include these key aspects: ${template.description}`;
@@ -356,7 +376,7 @@ export default function TemplatesPage() {
                             `/dashboard/generate?theme=${encodeURIComponent(template.name)}&prompt=${encodeURIComponent(prompt)}`,
                           );
                         }}
-                        className="w-full text-sm font-medium text-white bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 py-2.5 rounded-xl transition-all shadow-[0_0_15px_rgba(124,58,237,0.2)] hover:shadow-[0_0_25px_rgba(124,58,237,0.4)]"
+                        className="flex-1 text-sm font-medium text-white bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-95 py-2.5 rounded-xl transition-all shadow-[0_0_15px_rgba(124,58,237,0.2)] hover:shadow-[0_0_25px_rgba(124,58,237,0.4)] cursor-pointer"
                       >
                         Use Template
                       </button>
@@ -465,6 +485,90 @@ export default function TemplatesPage() {
                       Create
                     </button>
                   </div>
+                </div>
+              </GlassCard>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {previewTemplate && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+              onClick={() => setPreviewTemplate(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-5xl max-h-[90vh] flex flex-col z-10"
+            >
+              <GlassCard className="p-8 flex flex-col max-h-[90vh] overflow-hidden">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-white/10 shrink-0">
+                  <div>
+                    <h3 className="text-2xl font-bold text-white">
+                      {previewTemplate.name} Preview
+                    </h3>
+                    <p className="text-sm text-gray-400 mt-1">
+                      Showing sample data rendered in this template's layout.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setPreviewTemplate(null)}
+                    className="text-gray-400 hover:text-white transition-colors cursor-pointer"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto scrollbar-hide bg-[#09090B]/50 rounded-xl p-8 border border-white/5 prose prose-invert max-w-none">
+                  <ReactMarkdown
+                    components={{
+                      h1: ({ children }) => <h1 className="text-3xl font-bold text-white mt-6 mb-4 border-b border-white/10 pb-2">{children}</h1>,
+                      h2: ({ children }) => <h2 className="text-2xl font-bold text-white mt-6 mb-3 border-b border-white/5 pb-1">{children}</h2>,
+                      h3: ({ children }) => <h3 className="text-xl font-bold text-white mt-4 mb-2">{children}</h3>,
+                      p: ({ children }) => <p className="text-gray-300 leading-relaxed my-3">{children}</p>,
+                      ul: ({ children }) => <ul className="list-disc list-inside space-y-2 my-4 pl-4 text-gray-300">{children}</ul>,
+                      ol: ({ children }) => <ol className="list-decimal list-inside space-y-2 my-4 pl-4 text-gray-300">{children}</ol>,
+                      li: ({ children }) => <li className="text-gray-300">{children}</li>,
+                      code: ({ children }) => <code className="bg-white/10 px-1.5 py-0.5 rounded text-sm text-[#22D3EE] font-mono">{children}</code>,
+                      strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
+                      a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#22D3EE] hover:underline">{children}</a>,
+                      img: ({ src, alt }) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={src} alt={alt || ""} className="inline-block max-w-full rounded-md border border-white/5 my-2 mr-4" />
+                      ),
+                    }}
+                  >
+                    {sampleData[previewTemplate.style] || ""}
+                  </ReactMarkdown>
+                </div>
+
+                <div className="mt-6 pt-4 border-t border-white/10 flex justify-end gap-3 shrink-0">
+                  <button
+                    onClick={() => setPreviewTemplate(null)}
+                    className="py-2.5 px-5 bg-white/5 hover:bg-white/10 text-white rounded-xl font-medium transition-all cursor-pointer"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      const template = previewTemplate;
+                      setPreviewTemplate(null);
+                      const prompt = `Generate a comprehensive README following the ${template.name} theme. It should have a ${template.style} style layout and include these key aspects: ${template.description}`;
+                      router.push(
+                        `/dashboard/generate?theme=${encodeURIComponent(template.name)}&prompt=${encodeURIComponent(prompt)}`,
+                      );
+                    }}
+                    className="py-2.5 px-5 bg-gradient-to-r from-[#7C3AED] to-[#A855F7] hover:opacity-90 text-white rounded-xl font-medium transition-all shadow-[0_0_20px_rgba(124,58,237,0.3)] cursor-pointer"
+                  >
+                    Use Template
+                  </button>
                 </div>
               </GlassCard>
             </motion.div>
