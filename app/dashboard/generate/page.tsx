@@ -114,12 +114,24 @@ export default function GeneratePage() {
       // Just a URL from repositories page -> show template modal
       setShowTemplateModal(true);
       autoStartedRef.current = true;
-    } else if (prompt || repoUrl) {
-      // Has prompt (and maybe theme) -> just start
+    } else if (repoUrl) {
+      // Has repo URL (and maybe prompt/theme) -> just start
       autoStartedRef.current = true;
       setTimeout(() => {
         startGeneration(undefined, prompt || undefined, themeParam || undefined, repoUrl || undefined);
       }, 300);
+    } else if (prompt || themeParam) {
+      // Has template prompt/theme but no repo URL -> prompt user for URL
+      autoStartedRef.current = true;
+      toast.custom((t) => (
+        <div className="bg-[#09090B] border border-[#7C3AED] text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3">
+          <Sparkles className="w-5 h-5 text-[#A855F7] shrink-0" />
+          <div>
+            <p className="font-semibold text-sm">Template Selected: {themeParam}</p>
+            <p className="text-xs text-gray-400">Please enter your GitHub repository URL to generate the README.</p>
+          </div>
+        </div>
+      ), { duration: 5000 });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -377,17 +389,21 @@ export default function GeneratePage() {
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
-                  if (!url && !aiPrompt) {
+                  if (!url) {
                     toast.error("Please enter a GitHub repository URL.");
                     return;
                   }
-                  setShowTemplateModal(true);
+                  if (theme) {
+                    startGeneration(e);
+                  } else {
+                    setShowTemplateModal(true);
+                  }
                 }}
                 className="space-y-6"
               >
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    GitHub Repository URL <span className="text-gray-500 font-normal">(optional if template prompt loaded)</span>
+                    GitHub Repository URL
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -399,17 +415,10 @@ export default function GeneratePage() {
                       onChange={(e) => setUrl(e.target.value)}
                       placeholder="https://github.com/username/repository"
                       className="block w-full pl-11 pr-4 py-3 bg-[#09090B] border border-white/10 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-[#7C3AED] focus:border-transparent transition-all outline-none"
-                      required={!aiPrompt}
+                      required
                     />
                   </div>
                 </div>
-
-                {aiPrompt && (
-                  <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-[#7C3AED]/10 border border-[#7C3AED]/20">
-                    <Sparkles className="w-4 h-4 text-[#A855F7] mt-0.5 shrink-0" />
-                    <p className="text-sm text-gray-300 leading-relaxed line-clamp-2">{aiPrompt}</p>
-                  </div>
-                )}
 
                 <button
                   type="submit"

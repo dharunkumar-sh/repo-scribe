@@ -32,7 +32,9 @@ export default function Hero() {
         >
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 backdrop-blur-md mb-8">
             <Sparkles className="w-4 h-4 text-[#22D3EE]" />
-            <span className="text-sm font-medium text-[#E4E4E7]">RepoScribe AI is now live</span>
+            <span className="text-sm font-medium text-[#E4E4E7]">
+              {user ? `Welcome back, ${user.displayName || user.email?.split("@")[0] || "Developer"}!` : "RepoScribe AI is now live"}
+            </span>
           </div>
           
           <h1 className="text-5xl lg:text-7xl font-bold tracking-tight mb-6 leading-tight">
@@ -76,7 +78,9 @@ export default function Hero() {
             <div className="p-6 bg-[#09090B]/80 font-mono text-sm">
               <div className="flex items-center gap-3 mb-6 bg-white/5 rounded-lg p-3 border border-white/10">
                 <Terminal className="w-5 h-5 text-[#22D3EE]" />
-                <span className="text-[#FAFAFA]">https://github.com/username/awesome-project</span>
+                <span className="text-[#FAFAFA]">
+                  https://github.com/{user ? (user.displayName?.toLowerCase().replace(/\s+/g, '') || user.email?.split("@")[0] || "username") : "username"}/awesome-project
+                </span>
                 <div className="ml-auto w-2 h-4 bg-[#7C3AED] animate-pulse" />
               </div>
               
