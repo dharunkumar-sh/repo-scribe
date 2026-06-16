@@ -19,7 +19,7 @@ export default function Templates() {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
           <div className="max-w-2xl">
             <h2 className="text-3xl md:text-5xl font-bold mb-6">
-              A Template for <span className="text-gradient">Every Project</span>
+              50+ Templates for <span className="text-gradient">Every Project</span>
             </h2>
             <p className="text-[#A1A1AA] text-lg">
               Start with a beautifully crafted foundation. Whether you are building an open-source library or a commercial SaaS, we have a layout that fits perfectly.

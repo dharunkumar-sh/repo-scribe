@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { buildIntelligentSystemPrompt } from "@/lib/templateEngine";
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY!;
 const MODEL = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free";
@@ -17,15 +18,33 @@ async function fetchGitHubRepoContext(repoUrl: string): Promise<string> {
     ]);
 
     let context = "";
+    let defaultBranch = "main";
 
     if (repoRes.status === "fulfilled" && repoRes.value.ok) {
       const data = await repoRes.value.json();
+      defaultBranch = data.default_branch || "main";
       context += `Repository: ${data.full_name}\n`;
       context += `Description: ${data.description || "No description"}\n`;
       context += `Language: ${data.language || "Unknown"}\n`;
       context += `Stars: ${data.stargazers_count} | Forks: ${data.forks_count}\n`;
       context += `Topics: ${(data.topics || []).join(", ") || "None"}\n`;
       context += `License: ${data.license?.name || "None"}\n`;
+    }
+
+    // Fetch repository tree
+    try {
+      const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`, { headers });
+      if (treeRes.ok) {
+        const treeData = await treeRes.json();
+        if (treeData && treeData.tree) {
+          // Grab up to 150 important file paths to give the AI an idea of the structure
+          const paths = treeData.tree.map((t: any) => t.path).slice(0, 150);
+          context += `\nRepository File Tree (Partial):\n${paths.join('\n')}\n`;
+        }
+      }
+    } catch (e) {
+      // Ignore tree errors
+      console.error("Error fetching repository tree:", e);
     }
 
     if (packageRes.status === "fulfilled" && packageRes.value.ok) {
@@ -55,25 +74,6 @@ async function fetchGitHubRepoContext(repoUrl: string): Promise<string> {
   }
 }
 
-function buildSystemPrompt(theme: string | null): string {
-  const styleGuide = theme
-    ? `You are generating a README in the style of: "${theme}". Match the expected layout and emphasis for that template type.`
-    : `You are a senior developer writing a professional, well-structured README.`;
-
-  return `${styleGuide}
-
-Your README must:
-- Use clean, professional Markdown
-- Include badges (shields.io) where relevant
-- Have a beautiful header with project name and tagline
-- Include sections: Overview, Features, Tech Stack, Getting Started (Prerequisites + Installation), Usage, Screenshots placeholder if applicable, Contributing, License
-- Use emoji sparingly but effectively for visual hierarchy
-- Write crisp, developer-friendly prose (not marketing fluff)
-- Include code blocks with syntax highlighting for install/usage steps
-- Be ready to copy-paste directly to GitHub
-
-Output ONLY the raw Markdown. No explanations, no preamble, no trailing comments.`;
-}
 
 export async function POST(req: NextRequest) {
   const signal = req.signal;
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
     }
     userMessage += "Generate the README now.";
 
-    const systemPrompt = buildSystemPrompt(theme || null);
+    const systemPrompt = buildIntelligentSystemPrompt(theme || null);
 
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
