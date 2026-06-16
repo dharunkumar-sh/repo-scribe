@@ -10,7 +10,7 @@ import {
 const features = [
   { icon: <Brain className="w-6 h-6" />, title: "Smart Repository Analysis", description: "Deep scanning of your codebase to understand intent, structure, and dependencies." },
   { icon: <Zap className="w-6 h-6" />, title: "Fast Generation", description: "Get a comprehensive README in less than 10 seconds, saving hours of writing." },
-  { icon: <Layout className="w-6 h-6" />, title: "Multiple Templates", description: "Choose from Professional, Minimal, Open Source, and Portfolio layouts." },
+  { icon: <Layout className="w-6 h-6" />, title: "50+ Unique Templates", description: "Choose from over 50 professionally designed templates spanning diverse layouts and use-cases." },
   { icon: <Eye className="w-6 h-6" />, title: "Live Markdown Preview", description: "See exactly how your README will look on GitHub before you export." },
   { icon: <ShieldCheck className="w-6 h-6" />, title: "Automatic Badges", description: "Auto-detects and inserts beautiful shields.io badges for your tech stack." },
   { icon: <Code2 className="w-6 h-6" />, title: "GitHub Ready", description: "100% compliant with GitHub Flavored Markdown (GFM) standards." },

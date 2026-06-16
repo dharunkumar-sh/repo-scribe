@@ -34,10 +34,10 @@ const secondaryNavigation = [
   { name: "GitHub Profile Manager", href: "/dashboard/github", icon: GithubIcon },
   { name: "Repositories", href: "/dashboard/repositories", icon: BookMarked },
   { name: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-  { name: "Profile README", href: "/dashboard/readme", icon: FileCode2 },
+
 ];
 
-const GITHUB_GATED = ["Repositories", "Analytics", "Profile README"];
+const GITHUB_GATED = ["Repositories", "Analytics"];
 
 export function Sidebar() {
   const pathname = usePathname();

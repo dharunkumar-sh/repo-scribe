@@ -12,58 +12,222 @@ import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
 import { X } from "lucide-react";
 import { hasToSViolation, censorText } from "@/lib/censor";
-import ReactMarkdown from "react-markdown";
-
+import dynamic from "next/dynamic";
 import { templates, Template } from "@/lib/templates";
+import { getSampleData } from "@/lib/templateContent";
+
+const MarkdownRenderer = dynamic(() => import("@/app/dashboard/components/MarkdownRenderer"), {
+  ssr: false,
+  loading: () => <div className="text-gray-400 p-4">Loading preview...</div>,
+});
 
 const sampleData: Record<string, string> = {
-  classic: `# Classic Professional README\n\nStandard template featuring clean titles, installation steps, and usage guide.\n\n## 🚀 Getting Started\n\n### Prerequisites\n- Node.js >= 16\n- npm or yarn\n\n### Installation\n\`\`\`bash\nnpm install project-name\n\`\`\`\n\n## 💻 Usage\n\`\`\`javascript\nconst project = require('project-name');\nproject.start();\n\`\`\``,
-  portfolio: `# John Doe 🚀\n\nPassionate Full-Stack Developer building modern web applications.\n\n- 🔭 Currently working on Next.js projects\n- 🌱 Learning Rust and WASM\n- 💬 Ask me about React, Node, or Tailwind\n\n## 💻 Tech Stack\n- **Frontend**: React, Next.js, TypeScript, Tailwind\n- **Backend**: Node.js, GraphQL, PostgreSQL\n\n## 📊 Stats\n![GitHub stats](https://github-readme-stats.vercel.app/api?username=johndoe&show_icons=true&theme=tokyonight)`,
-  oss: `# OSS Community Hub\n\nWelcome to our Open Source project! We appreciate all contributions.\n\n## 🤝 Contributing\n\nPlease read [CONTRIBUTING.md](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.\n\n## 📜 Code of Conduct\nThis project adheres to the Contributor Covenant Code of Conduct. By participating, you are expected to uphold this code.\n\n## ⚖️ License\nThis project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.`,
-  startup: `# SaaS Boilerplate\n\nThe ultimate starter kit for building your next SaaS product.\n\n## 🗺️ Product Roadmap\n- [x] Database authentication setup\n- [/] Subscription billing integration (Stripe)\n- [ ] Analytics dashboard\n\n## 👥 Team\n- **Founder**: Alice Smith\n- **Lead Dev**: Bob Jones`,
-  minimal: `# Clean Minimalist\n\n> A minimalist layout for clean projects.\n\n![Preview](https://via.placeholder.com/800x400.png?text=Project+Screenshot)\n\n## Quick Start\n\`\`\`bash\nnpx create-app\n\`\`\``,
-  academic: `# Academic Research Project\n\nImplementation of the paper: *"Deep Learning for Automated Readme Generation"*\n\n## 📝 Citation\n\`\`\`bibtex\n@article{doe2026deep,\n  title={Deep Learning for Automated Readme Generation},\n  author={Doe, John and Smith, Jane},\n  journal={arXiv preprint arXiv:2601.12345},\n  year={2026}\n}\n\`\`\`\n\n## 📊 Dataset\nWe use the RepoDocs-2026 dataset, available [here](https://example.com/dataset).`,
-  terminal: `# Creative API / SDK\n\nOfficial SDK for the RepoScribe API.\n\n## ⚙️ Installation\n\`\`\`bash\nnpm install @reposcribe/sdk\n\`\`\`\n\n## 🛠️ Usage\n\`\`\`typescript\nimport { RepoScribe } from '@reposcribe/sdk';\n\nconst client = new RepoScribe({ apiKey: 'your_api_key' });\nconst readme = await client.generate({ repoUrl: '...' });\nconsole.log(readme);\n\`\`\``,
-  chart: `# Machine Learning Hub\n\nAutomated model training and evaluation suite.\n\n## 📈 Model Performance\n\n| Model | Accuracy | F1-Score | Training Time |\n| :--- | :--- | :--- | :--- |\n| **ResNet-50** | 94.2% | 0.941 | 4.2 hours |\n| **EfficientNet** | 95.8% | 0.957 | 6.1 hours |\n| **MobileNet** | 89.1% | 0.889 | 1.5 hours |\n\n## 🧪 Evaluation\n\`\`\`bash\npython evaluate.py --model efficientnet --dataset cifar10\n\`\`\``
+  classic: `<div align="center">
+  <h1>Classic Professional README</h1>
+  <p>Standard template featuring clean titles, installation steps, and usage guide.</p>
+</div>
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js >= 16
+- npm or yarn
+
+### Installation
+\`\`\`bash
+npm install project-name
+\`\`\`
+
+## 💻 Usage
+\`\`\`javascript
+const project = require('project-name');
+project.start();
+\`\`\``,
+
+  portfolio: `<div align="center">
+  <img src="https://via.placeholder.com/150" alt="Profile" width="150" style="border-radius:50%;" />
+  <h1>Hi, I'm John Doe 👋</h1>
+  <p><em>Passionate Full-Stack Developer building modern web applications.</em></p>
+  
+  [![LinkedIn](https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white)](https://linkedin.com)
+  [![Twitter](https://img.shields.io/badge/Twitter-1DA1F2?style=for-the-badge&logo=twitter&logoColor=white)](https://twitter.com)
+</div>
+
+<br/>
+
+- 🔭 Currently working on Next.js projects
+- 🌱 Learning Rust and WASM
+- 💬 Ask me about React, Node, or Tailwind
+
+## 💻 Tech Stack
+- **Frontend**: React, Next.js, TypeScript, Tailwind
+- **Backend**: Node.js, GraphQL, PostgreSQL
+
+## 📊 GitHub Stats
+![GitHub stats](https://github-readme-stats.vercel.app/api?username=johndoe&show_icons=true&theme=tokyonight)`,
+
+  oss: `<h1>OSS Community Hub</h1>
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+
+> Welcome to our Open Source project! We appreciate all contributions.
+
+## 🤝 Contributing
+We love pull requests from everyone. By participating in this project, you agree to abide by the [code of conduct](CODE_OF_CONDUCT.md).
+
+### How to contribute
+1. Fork the repository
+2. Create a feature branch (\`git checkout -b feature/AmazingFeature\`)
+3. Commit your changes (\`git commit -m 'Add some AmazingFeature'\`)
+4. Push to the branch (\`git push origin feature/AmazingFeature\`)
+5. Open a Pull Request`,
+
+  startup: `<div align="center">
+  <h1>SaaS Boilerplate</h1>
+  <p>The ultimate starter kit for building your next SaaS product.</p>
+  <br/>
+  <a href="#features">Features</a> •
+  <a href="#roadmap">Roadmap</a> •
+  <a href="#team">Team</a>
+</div>
+
+---
+
+## ✨ Features
+- 🔐 Database authentication setup
+- 💳 Subscription billing integration (Stripe)
+- 📊 Analytics dashboard
+
+## 🗺️ Product Roadmap
+- [x] Initial release
+- [ ] User invites
+- [ ] Custom domains
+
+## 👥 Team
+| Role | Name | GitHub |
+|------|------|--------|
+| **Founder** | Alice Smith | [@alicesmith](https://github.com) |
+| **Lead Dev** | Bob Jones | [@bobjones](https://github.com) |`,
+
+  minimal: `# Clean Minimalist
+
+> A minimalist layout for clean projects.
+
+![Preview](https://via.placeholder.com/800x400.png?text=Project+Screenshot)
+
+## Quick Start
+\`\`\`bash
+npx create-app
+\`\`\``,
+
+  academic: `# Academic Research Project
+
+*Implementation of the paper: "Deep Learning for Automated Readme Generation"*
+
+---
+
+## 📝 Abstract
+This repository contains the source code and datasets required to reproduce the results presented in our recent paper. We propose a novel architecture for generating READMEs using transformer models.
+
+## 📌 Citation
+If you use this code in your research, please cite our paper:
+\`\`\`bibtex
+@article{doe2026deep,
+  title={Deep Learning for Automated Readme Generation},
+  author={Doe, John and Smith, Jane},
+  journal={arXiv preprint arXiv:2601.12345},
+  year={2026}
+}
+\`\`\`
+
+## 📊 Dataset
+We use the RepoDocs-2026 dataset, available [here](https://example.com/dataset).`,
+
+  terminal: `# Creative API / SDK
+> Official SDK for the RepoScribe API.
+
+## ⚙️ Installation
+\`\`\`bash
+npm install @reposcribe/sdk
+\`\`\`
+
+## 🛠️ Usage
+\`\`\`typescript
+import { RepoScribe } from '@reposcribe/sdk';
+
+const client = new RepoScribe({ apiKey: process.env.API_KEY });
+const readme = await client.generate({ repoUrl: 'https://github.com/abc' });
+console.log(readme);
+\`\`\``,
+
+  chart: `# Machine Learning Hub
+
+Automated model training and evaluation suite.
+
+---
+
+## 📈 Model Performance
+
+| Model | Accuracy | F1-Score | Training Time |
+| :--- | :--- | :--- | :--- |
+| **ResNet-50** | 94.2% | 0.941 | 4.2 hours |
+| **EfficientNet** | 95.8% | 0.957 | 6.1 hours |
+| **MobileNet** | 89.1% | 0.889 | 1.5 hours |
+
+## 🧪 Evaluation
+\`\`\`bash
+python evaluate.py --model efficientnet --dataset cifar10
+\`\`\``
 };
 
-function TemplatePreview({ style }: { style: Template["style"] }) {
+function TemplatePreview({ template }: { template: Template }) {
+  const { style, id } = template;
+  // Generate unique colors based on ID for visual variety
+  const hue1 = (id * 137.5) % 360;
+  const hue2 = (id * 137.5 + 45) % 360;
+  const baseColor = `hsla(${hue1}, 70%, 60%, 0.3)`;
+  const accentColor = `hsla(${hue2}, 80%, 60%, 0.5)`;
+
   switch (style) {
     case "classic":
       return (
-        <div className="w-full h-full flex flex-col justify-center px-6 gap-2 opacity-60">
-          <div className="w-12 h-2.5 bg-white/20 rounded-full" />
-          <div className="w-full h-1.5 bg-white/10 rounded-full" />
-          <div className="w-5/6 h-1.5 bg-white/10 rounded-full" />
-          <div className="w-4/6 h-1.5 bg-white/10 rounded-full" />
+        <div className="w-full h-full flex flex-col justify-center px-6 gap-2 opacity-80">
+          <div className="w-12 h-2.5 rounded-full" style={{ backgroundColor: accentColor }} />
+          <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: baseColor }} />
+          <div className={`${id % 2 === 0 ? 'w-5/6' : 'w-4/6'} h-1.5 rounded-full`} style={{ backgroundColor: baseColor }} />
+          <div className={`${id % 3 === 0 ? 'w-4/6' : 'w-3/6'} h-1.5 rounded-full`} style={{ backgroundColor: baseColor }} />
         </div>
       );
     case "portfolio":
       return (
-        <div className="w-full h-full flex items-center justify-center gap-4 px-6 opacity-60">
-          <div className="w-10 h-10 rounded-full bg-white/20 shrink-0" />
+        <div className="w-full h-full flex items-center justify-center gap-4 px-6 opacity-80">
+          <div className="w-10 h-10 rounded-full shrink-0" style={{ backgroundColor: accentColor }} />
           <div className="flex-1 space-y-2">
-            <div className="w-16 h-2.5 bg-white/20 rounded-full" />
-            <div className="w-full h-1.5 bg-white/10 rounded-full" />
-            <div className="w-3/4 h-1.5 bg-white/10 rounded-full" />
+            <div className={`${id % 2 === 0 ? 'w-16' : 'w-20'} h-2.5 rounded-full`} style={{ backgroundColor: accentColor }} />
+            <div className="w-full h-1.5 rounded-full" style={{ backgroundColor: baseColor }} />
+            <div className={`${id % 3 === 0 ? 'w-2/3' : 'w-3/4'} h-1.5 rounded-full`} style={{ backgroundColor: baseColor }} />
           </div>
         </div>
       );
     case "oss":
       return (
-        <div className="w-full h-full flex flex-col justify-center px-6 gap-2 opacity-50">
-          <div className="w-20 h-2 bg-white/20 rounded-full mb-1" />
+        <div className="w-full h-full flex flex-col justify-center px-6 gap-2 opacity-80">
+          <div className="w-20 h-2 rounded-full mb-1" style={{ backgroundColor: accentColor }} />
           <div className="grid grid-cols-6 gap-1 w-24">
             {Array.from({ length: 18 }).map((_, i) => (
               <div
                 key={i}
-                className={`w-3.5 h-3.5 rounded-sm ${
-                  i % 3 === 0
-                    ? "bg-emerald-500/40"
-                    : i % 5 === 0
-                      ? "bg-emerald-400/20"
-                      : "bg-white/5"
-                }`}
+                className="w-3.5 h-3.5 rounded-sm"
+                style={{
+                  backgroundColor: i % (3 + (id % 3)) === 0 
+                    ? accentColor 
+                    : i % (5 + (id % 2)) === 0 
+                      ? baseColor 
+                      : "rgba(255,255,255,0.05)"
+                }}
               />
             ))}
           </div>
@@ -71,34 +235,34 @@ function TemplatePreview({ style }: { style: Template["style"] }) {
       );
     case "startup":
       return (
-        <div className="w-full h-full flex justify-center items-center gap-2 px-6 opacity-60">
-          <div className="w-1/3 h-16 bg-white/10 rounded-lg border border-white/5" />
-          <div className="w-1/3 h-16 bg-white/10 rounded-lg border border-white/5" />
-          <div className="w-1/3 h-16 bg-white/10 rounded-lg border border-white/5" />
+        <div className="w-full h-full flex justify-center items-center gap-2 px-6 opacity-80">
+          <div className="w-1/3 h-16 rounded-lg border border-white/5" style={{ backgroundColor: baseColor }} />
+          <div className={`w-1/3 ${id % 2 === 0 ? 'h-20' : 'h-16'} rounded-lg border border-white/5`} style={{ backgroundColor: accentColor }} />
+          <div className="w-1/3 h-16 rounded-lg border border-white/5" style={{ backgroundColor: baseColor }} />
         </div>
       );
     case "minimal":
       return (
-        <div className="w-full h-full flex flex-col justify-center items-center px-8 opacity-60">
-          <div className="w-full h-12 bg-white/10 rounded-lg border border-white/5 flex items-center justify-between px-3">
-            <div className="w-4 h-4 rounded-full bg-white/20" />
-            <div className="w-16 h-2 bg-white/20 rounded-full" />
-            <div className="w-8 h-4 rounded bg-[#7C3AED]/30" />
+        <div className="w-full h-full flex flex-col justify-center items-center px-8 opacity-80">
+          <div className="w-full h-12 rounded-lg border border-white/5 flex items-center justify-between px-3" style={{ backgroundColor: baseColor }}>
+            <div className="w-4 h-4 rounded-full" style={{ backgroundColor: accentColor }} />
+            <div className={`${id % 2 === 0 ? 'w-16' : 'w-20'} h-2 rounded-full`} style={{ backgroundColor: "rgba(255,255,255,0.2)" }} />
+            <div className="w-8 h-4 rounded" style={{ backgroundColor: accentColor }} />
           </div>
         </div>
       );
     case "academic":
       return (
-        <div className="w-full h-full flex flex-col justify-center px-6 gap-2 opacity-60">
-          <div className="w-20 h-2.5 bg-white/20 rounded-full" />
+        <div className="w-full h-full flex flex-col justify-center px-6 gap-2 opacity-80">
+          <div className={`${id % 2 === 0 ? 'w-20' : 'w-24'} h-2.5 rounded-full`} style={{ backgroundColor: accentColor }} />
           <div className="border border-white/10 rounded-md p-1.5 space-y-1">
             <div className="flex justify-between border-b border-white/5 pb-1">
-              <div className="w-8 h-1.5 bg-white/20 rounded-full" />
-              <div className="w-6 h-1.5 bg-white/20 rounded-full" />
+              <div className="w-8 h-1.5 rounded-full" style={{ backgroundColor: baseColor }} />
+              <div className="w-6 h-1.5 rounded-full" style={{ backgroundColor: baseColor }} />
             </div>
             <div className="flex justify-between">
-              <div className="w-12 h-1 bg-white/10 rounded-full" />
-              <div className="w-4 h-1 bg-white/10 rounded-full" />
+              <div className="w-12 h-1 rounded-full" style={{ backgroundColor: baseColor }} />
+              <div className="w-4 h-1 rounded-full" style={{ backgroundColor: baseColor }} />
             </div>
           </div>
         </div>
@@ -106,14 +270,14 @@ function TemplatePreview({ style }: { style: Template["style"] }) {
     case "terminal":
       return (
         <div className="w-full h-full flex items-center justify-center p-4">
-          <div className="w-full h-24 bg-[#09090B] border border-white/10 rounded-lg p-2 font-mono text-[9px] text-[#22D3EE]/80 flex flex-col justify-center gap-1">
+          <div className="w-full h-24 bg-[#09090B] border border-white/10 rounded-lg p-2 font-mono text-[9px] flex flex-col justify-center gap-1" style={{ color: accentColor }}>
             <div className="flex items-center gap-1">
-              <span className="text-[#A855F7]">$</span>
-              <span>npm install @sdk/client</span>
+              <span style={{ color: baseColor }}>$</span>
+              <span>npm i {template.name.split(' ')[0].toLowerCase()}</span>
             </div>
-            <div className="text-white/40">✓ Added 24 packages in 0.8s</div>
+            <div className="text-white/40">✓ Added {10 + (id % 40)} packages in 0.{id % 9}s</div>
             <div className="flex items-center gap-1">
-              <span className="text-[#A855F7]">$</span>
+              <span style={{ color: baseColor }}>$</span>
               <span className="animate-pulse">|</span>
             </div>
           </div>
@@ -121,10 +285,10 @@ function TemplatePreview({ style }: { style: Template["style"] }) {
       );
     case "chart":
       return (
-        <div className="w-full h-full flex items-end justify-center gap-3 px-8 pb-4 opacity-60">
-          <div className="w-6 h-12 bg-[#22D3EE]/30 rounded-t border-t border-x border-[#22D3EE]/50" />
-          <div className="w-6 h-16 bg-[#7C3AED]/30 rounded-t border-t border-x border-[#7C3AED]/50" />
-          <div className="w-6 h-8 bg-[#A855F7]/30 rounded-t border-t border-x border-[#A855F7]/50" />
+        <div className="w-full h-full flex items-end justify-center gap-3 px-8 pb-4 opacity-80">
+          <div className={`w-6 ${id % 3 === 0 ? 'h-16' : 'h-12'} rounded-t border-t border-x border-white/20`} style={{ backgroundColor: baseColor }} />
+          <div className={`w-6 ${id % 2 === 0 ? 'h-20' : 'h-16'} rounded-t border-t border-x border-white/20`} style={{ backgroundColor: accentColor }} />
+          <div className={`w-6 ${id % 4 === 0 ? 'h-12' : 'h-8'} rounded-t border-t border-x border-white/20`} style={{ backgroundColor: baseColor }} />
         </div>
       );
     default:
@@ -347,7 +511,7 @@ export default function TemplatesPage() {
                       </button>
                     </div>
 
-                    <TemplatePreview style={template.style} />
+                    <TemplatePreview template={template} />
                   </div>
 
                   <div className="p-5 flex-1 flex flex-col relative">
@@ -527,26 +691,10 @@ export default function TemplatesPage() {
                 </div>
 
                 <div className="flex-1 overflow-y-auto scrollbar-hide bg-[#09090B]/50 rounded-xl p-8 border border-white/5 prose prose-invert max-w-none">
-                  <ReactMarkdown
-                    components={{
-                      h1: ({ children }) => <h1 className="text-3xl font-bold text-white mt-6 mb-4 border-b border-white/10 pb-2">{children}</h1>,
-                      h2: ({ children }) => <h2 className="text-2xl font-bold text-white mt-6 mb-3 border-b border-white/5 pb-1">{children}</h2>,
-                      h3: ({ children }) => <h3 className="text-xl font-bold text-white mt-4 mb-2">{children}</h3>,
-                      p: ({ children }) => <p className="text-gray-300 leading-relaxed my-3">{children}</p>,
-                      ul: ({ children }) => <ul className="list-disc list-inside space-y-2 my-4 pl-4 text-gray-300">{children}</ul>,
-                      ol: ({ children }) => <ol className="list-decimal list-inside space-y-2 my-4 pl-4 text-gray-300">{children}</ol>,
-                      li: ({ children }) => <li className="text-gray-300">{children}</li>,
-                      code: ({ children }) => <code className="bg-white/10 px-1.5 py-0.5 rounded text-sm text-[#22D3EE] font-mono">{children}</code>,
-                      strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
-                      a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#22D3EE] hover:underline">{children}</a>,
-                      img: ({ src, alt }) => (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={src} alt={alt || ""} className="inline-block max-w-full rounded-md border border-white/5 my-2 mr-4" />
-                      ),
-                    }}
-                  >
-                    {sampleData[previewTemplate.style] || ""}
-                  </ReactMarkdown>
+                  <MarkdownRenderer
+                    content={getSampleData(previewTemplate)}
+                    themeStyle={previewTemplate.style}
+                  />
                 </div>
 
                 <div className="mt-6 pt-4 border-t border-white/10 flex justify-end gap-3 shrink-0">

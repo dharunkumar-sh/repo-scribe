@@ -31,7 +31,7 @@ const FEATURES = [
   { label: "GitHub Profile Manager", href: "/dashboard/github", icon: GithubIcon, category: "GitHub Workspace" },
   { label: "Repository Manager", href: "/dashboard/repositories", icon: BookMarked, category: "GitHub Workspace" },
   { label: "Contribution Analytics", href: "/dashboard/analytics", icon: BarChart3, category: "GitHub Workspace" },
-  { label: "Profile README Generator", href: "/dashboard/readme", icon: FileCode2, category: "GitHub Workspace" },
+
   { label: "Account Settings", href: "/dashboard/settings", icon: Settings, category: "Settings" },
 ];
 

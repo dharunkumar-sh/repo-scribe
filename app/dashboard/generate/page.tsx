@@ -12,9 +12,14 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { hasToSViolation } from "@/lib/censor";
-import ReactMarkdown from "react-markdown";
 import { Collection } from "@/lib/types";
 import { templates } from "@/lib/templates";
+import dynamic from "next/dynamic";
+
+const MarkdownRenderer = dynamic(() => import("@/app/dashboard/components/MarkdownRenderer"), {
+  ssr: false,
+  loading: () => <div className="text-gray-400 p-4">Loading preview...</div>,
+});
 
 export default function GeneratePage() {
   const { user } = useAuth();
@@ -543,39 +548,10 @@ export default function GeneratePage() {
               >
                 {activeTab === "preview" ? (
                   <div className="p-6 prose prose-invert max-w-none">
-                    <ReactMarkdown
-                      components={{
-                        h1: ({ children }) => <h1 className="text-3xl font-bold text-white mt-4 mb-4 border-b border-white/10 pb-2">{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-2xl font-bold text-white mt-6 mb-3">{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-xl font-bold text-white mt-4 mb-2">{children}</h3>,
-                        p: ({ children }) => <p className="text-gray-300 leading-relaxed my-3">{children}</p>,
-                        ul: ({ children }) => <ul className="list-disc list-inside space-y-1.5 my-3 pl-2 text-gray-300">{children}</ul>,
-                        ol: ({ children }) => <ol className="list-decimal list-inside space-y-1.5 my-3 pl-2 text-gray-300">{children}</ol>,
-                        li: ({ children }) => <li className="text-gray-300">{children}</li>,
-                        code: ({ children, className }) => {
-                          const isBlock = className?.includes("language-");
-                          return isBlock ? (
-                            <code className="block bg-[#0D0D10] border border-white/10 rounded-lg px-4 py-3 text-sm text-[#22D3EE] font-mono overflow-x-auto my-3 whitespace-pre">{children}</code>
-                          ) : (
-                            <code className="bg-white/10 px-1.5 py-0.5 rounded text-sm text-[#22D3EE] font-mono">{children}</code>
-                          );
-                        },
-                        pre: ({ children }) => <pre className="my-0 bg-transparent">{children}</pre>,
-                        strong: ({ children }) => <strong className="font-semibold text-white">{children}</strong>,
-                        a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-[#A855F7] hover:text-[#C084FC] hover:underline transition-colors">{children}</a>,
-                        img: ({ src, alt }) => (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img src={src} alt={alt || ""} className="inline-block max-w-full rounded-md border border-white/5 my-2 mr-2" />
-                        ),
-                        blockquote: ({ children }) => <blockquote className="border-l-4 border-[#7C3AED]/50 pl-4 my-4 text-gray-400 italic">{children}</blockquote>,
-                        table: ({ children }) => <table className="w-full border-collapse my-4 text-sm">{children}</table>,
-                        th: ({ children }) => <th className="border border-white/10 px-3 py-2 text-left font-semibold text-white bg-white/5">{children}</th>,
-                        td: ({ children }) => <td className="border border-white/10 px-3 py-2 text-gray-300">{children}</td>,
-                        hr: () => <hr className="border-white/10 my-6" />,
-                      }}
-                    >
-                      {streamedMarkdown}
-                    </ReactMarkdown>
+                    <MarkdownRenderer
+                      content={streamedMarkdown}
+                      themeStyle={templates.find(t => t.name === theme)?.style || "classic"}
+                    />
                     {isStreaming && (
                       <span className="inline-block w-0.5 h-4 bg-[#A855F7] animate-pulse ml-0.5 align-middle" />
                     )}
