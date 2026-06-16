@@ -100,10 +100,10 @@ export function Sidebar() {
     <div className="w-65 h-screen bg-[#09090B] border-r border-white/5 flex flex-col z-50 shrink-0 sticky top-0">
       {/* Header */}
       <div className="h-16 flex items-center justify-between px-4 border-b border-white/5 shrink-0">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center">
           <Image src="/logo.svg" alt="RepoScribe Logo" width={36} height={36} className="shrink-0" />
           <span className="font-bold text-lg tracking-tight overflow-hidden whitespace-nowrap text-white">
-            RepoScribe
+            RepoScribe AI
           </span>
         </div>
       </div>

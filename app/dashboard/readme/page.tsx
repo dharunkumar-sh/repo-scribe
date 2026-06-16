@@ -122,6 +122,8 @@ export default function GitHubReadmePage() {
     setMarkdown("");
     setActiveTab("preview");
 
+    const toastId = toast.loading("Analyzing GitHub profile...");
+
     // Extract top repos and languages from store
     const topRepos = [...(repos || [])]
       .sort((a, b) => (b.stargazers_count || 0) - (a.stargazers_count || 0))
@@ -167,6 +169,8 @@ export default function GitHubReadmePage() {
         throw new Error(err.error || "Failed to generate profile README");
       }
 
+      toast.loading("Streaming profile README...", { id: toastId });
+
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
 
@@ -177,16 +181,19 @@ export default function GitHubReadmePage() {
         setMarkdown((prev) => prev + chunk);
       }
 
-      toast.success("Profile README generated!");
+      toast.success("Profile README generated!", { id: toastId });
       addActivity(
         `Generated profile README for @${profile?.login || "user"}`,
         "generate",
         "success"
       ).catch(() => {});
     } catch (err: any) {
-      if (err.name === "AbortError" || err.message?.includes("aborted") || err.message?.includes("AbortError")) return;
+      if (err.name === "AbortError" || err.message?.includes("aborted") || err.message?.includes("AbortError")) {
+        toast.dismiss(toastId);
+        return;
+      }
       console.error(err);
-      toast.error(err.message || "Failed to generate README. Try again.");
+      toast.error(err.message || "Failed to generate README. Try again.", { id: toastId });
     } finally {
       setIsGenerating(false);
     }
@@ -198,6 +205,7 @@ export default function GitHubReadmePage() {
       return;
     }
     setIsSaving(true);
+    const toastId = toast.loading("Saving README...");
     try {
       if (readmeId) {
         const docRef = doc(db, "saved_readmes", user.uid);
@@ -208,7 +216,9 @@ export default function GitHubReadmePage() {
             i.id === readmeId ? { ...i, title, markdown, updatedAt: new Date().toISOString() } : i
           );
           await setDoc(docRef, { items: updatedItems }, { merge: true });
-          toast.success("README updated!");
+          toast.success("README updated!", { id: toastId });
+        } else {
+          toast.error("Failed to update: document not found.", { id: toastId });
         }
       } else if (isNew) {
         const newId = Date.now().toString();
@@ -229,16 +239,16 @@ export default function GitHubReadmePage() {
 
         items.push(newReadme);
         await setDoc(docRef, { items }, { merge: true });
-        toast.success("New README saved!");
+        toast.success("New README saved!", { id: toastId });
         router.push(`/dashboard/readme?id=${newId}`);
       } else {
         const docRef = doc(db, "readmes", user.uid);
         await setDoc(docRef, { markdown, updatedAt: new Date().toISOString() }, { merge: true });
-        toast.success("Profile README saved!");
+        toast.success("Profile README saved!", { id: toastId });
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save README.");
+      toast.error("Failed to save README.", { id: toastId });
     } finally {
       setIsSaving(false);
     }
