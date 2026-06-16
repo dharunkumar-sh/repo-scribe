@@ -27,33 +27,37 @@ export default function Navbar() {
         scrolled ? "glass border-white/10 py-4" : "bg-transparent py-6"
       }`}
     >
-      <div className="container mx-auto px-6 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-lg bg-linear-to-br from-accent-400 to-accent-200 flex items-center justify-center text-white font-bold text-xl shadow-[0_0_15px_rgba(124,58,237,0.5)] group-hover:shadow-[0_0_25px_rgba(124,58,237,0.8)] transition-shadow">
-            R
-          </div>
-          <span className="font-bold text-xl tracking-tight text-foreground">
-            RepoScribe
+      <div className="container mx-auto px-4 flex items-center justify-between">
+        <Link href="/" className="flex items-center">
+          <Image
+            src="/logo.svg"
+            alt="Logo"
+            width={32}
+            height={32}
+            className="w-11.5 h-11.5 rounded-full object-cover group-hover:scale-110 transition-transform"
+          />
+          <span className="font-bold text-2xl tracking-tight text-foreground">
+            RepoScribe AI
           </span>
         </Link>
 
         <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-foreground">
-          <Link href="#features" className="hover:text-white transition-colors">
+          <Link href="/#features" className="hover:text-white transition-colors">
             Features
           </Link>
           <Link
-            href="#templates"
+            href="/#templates"
             className="hover:text-white transition-colors"
           >
             Templates
           </Link>
           <Link
-            href="#how-it-works"
+            href="/#how-it-works"
             className="hover:text-white transition-colors"
           >
             How It Works
           </Link>
-          <Link href="#faq" className="hover:text-white transition-colors">
+          <Link href="/docs#faq" className="hover:text-white transition-colors">
             FAQ
           </Link>
         </nav>
@@ -66,11 +70,13 @@ export default function Navbar() {
                 className="w-10 h-10 rounded-full border border-white/20 overflow-hidden flex items-center justify-center bg-white/5 hover:border-primary transition-colors cursor-pointer"
               >
                 {user.photoURL ? (
-                  <img
+                  <Image
                     src={user.photoURL}
                     alt="Profile"
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
+                    width={32}
+                    height={32}
                   />
                 ) : (
                   <span className="text-white font-bold text-sm">
@@ -96,15 +102,27 @@ export default function Navbar() {
                       </p>
                     </div>
 
-                    <button className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-white hover:bg-white/5 flex items-center gap-3 transition-colors">
+                    <Link
+                      href="/dashboard/settings"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-white hover:bg-white/5 flex items-center gap-3 transition-colors"
+                    >
                       <User className="w-4 h-4" /> Profile
-                    </button>
-                    <button className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-white hover:bg-white/5 flex items-center gap-3 transition-colors">
+                    </Link>
+                    <Link
+                      href="/dashboard"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-white hover:bg-white/5 flex items-center gap-3 transition-colors"
+                    >
                       <LayoutDashboard className="w-4 h-4" /> Dashboard
-                    </button>
-                    <button className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-white hover:bg-white/5 flex items-center gap-3 transition-colors">
+                    </Link>
+                    <Link
+                      href="/dashboard/settings"
+                      onClick={() => setIsDropdownOpen(false)}
+                      className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-white hover:bg-white/5 flex items-center gap-3 transition-colors"
+                    >
                       <Settings className="w-4 h-4" /> Settings
-                    </button>
+                    </Link>
 
                     <div className="h-px bg-white/5 my-2" />
 

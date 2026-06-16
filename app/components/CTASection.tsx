@@ -29,7 +29,7 @@ export default function CTASection() {
           transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[1000px] h-[500px] bg-gradient-to-r from-[#7C3AED] via-[#A855F7] to-[#22D3EE] rounded-[100%] blur-[120px] opacity-40 mix-blend-screen"
         />
-        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+        <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-20 mix-blend-overlay" />
       </div>
 
       <div className="container mx-auto px-6 relative z-10">

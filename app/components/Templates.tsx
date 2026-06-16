@@ -42,7 +42,7 @@ export default function Templates() {
               className={`group cursor-pointer rounded-2xl bg-[#09090B] border border-white/10 p-2 transition-all duration-300 ${template.border} hover:shadow-2xl`}
             >
               <div className={`w-full h-48 rounded-xl bg-gradient-to-br ${template.color} relative overflow-hidden mb-4`}>
-                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+                <div className="absolute inset-0 bg-[url('/noise.svg')] opacity-20 mix-blend-overlay" />
                 {/* Mock skeleton for template preview */}
                 <div className="absolute top-4 left-4 right-4 bottom-4 flex flex-col gap-3 opacity-50 group-hover:opacity-100 transition-opacity duration-500">
                   <div className="w-1/3 h-6 bg-white/20 rounded-md" />
