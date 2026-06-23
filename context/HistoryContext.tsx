@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, query, orderBy, limit, onSnapshot, addDoc, serverTimestamp, doc, updateDoc, where, getDocs, writeBatch } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "./AuthContext";
 
@@ -14,6 +14,8 @@ export interface ActivityItem {
   title: string;
   type: ActivityType;
   status: ActivityStatus;
+  read: boolean;
+  link?: string;
   createdAt: any;
 }
 
@@ -21,7 +23,9 @@ interface HistoryContextType {
   activities: ActivityItem[];
   loading: boolean;
   error: Error | null;
-  addActivity: (title: string, type: ActivityType, status?: ActivityStatus) => Promise<void>;
+  addActivity: (title: string, type: ActivityType, status?: ActivityStatus, link?: string) => Promise<void>;
+  markAsRead: (activityId: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
 }
 
 const HistoryContext = createContext<HistoryContextType | undefined>(undefined);
@@ -52,6 +56,7 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
         const activityData = snapshot.docs.map((doc) => ({
           id: doc.id,
           userId: user.uid,
+          read: false,
           ...doc.data(),
         })) as ActivityItem[];
         setActivities(activityData);
@@ -68,16 +73,17 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     return () => unsubscribe();
   }, [user]);
 
-  const addActivity = async (title: string, type: ActivityType, status: ActivityStatus = "default") => {
+  const addActivity = async (title: string, type: ActivityType, status: ActivityStatus = "default", link?: string) => {
     if (!user) return;
     try {
-      // Write to per-user subcollection — no composite index needed
       const activitiesRef = collection(db, "users", user.uid, "activities");
       await addDoc(activitiesRef, {
         userId: user.uid,
         title,
         type,
         status,
+        read: false,
+        link: link || null,
         createdAt: serverTimestamp(),
       });
     } catch (err) {
@@ -85,8 +91,40 @@ export function HistoryProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const markAsRead = async (activityId: string) => {
+    if (!user) return;
+    try {
+      const docRef = doc(db, "users", user.uid, "activities", activityId);
+      await updateDoc(docRef, { read: true });
+    } catch (err) {
+      console.error("Error marking activity as read:", err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!user) return;
+    try {
+      const batch = writeBatch(db);
+      let hasUpdates = false;
+
+      activities.forEach((activity) => {
+        if (!activity.read) {
+          const docRef = doc(db, "users", user.uid, "activities", activity.id);
+          batch.update(docRef, { read: true });
+          hasUpdates = true;
+        }
+      });
+
+      if (hasUpdates) {
+        await batch.commit();
+      }
+    } catch (err) {
+      console.error("Error marking all activities as read:", err);
+    }
+  };
+
   return (
-    <HistoryContext.Provider value={{ activities, loading, error, addActivity }}>
+    <HistoryContext.Provider value={{ activities, loading, error, addActivity, markAsRead, markAllAsRead }}>
       {children}
     </HistoryContext.Provider>
   );

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Search, Bell, Clock, Star, FileText, GitMerge, FileCode2, Activity } from "lucide-react";
+import { Search, Bell, Clock, Star, FileText, GitMerge, FileCode2, Activity, Check, Eye } from "lucide-react";
 import { useDashboardStore } from "@/store/useDashboardStore";
 import { useHistory } from "@/context/HistoryContext";
 import { GithubIcon } from "@/app/dashboard/components/ui/GithubIcon";
 import { formatDistanceToNow } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 function getActivityIcon(type: string) {
   switch (type) {
@@ -26,24 +27,15 @@ function getActivityIcon(type: string) {
 }
 
 export function TopNav() {
+  const router = useRouter();
   const { toggleCommandPalette } = useDashboardStore();
-  const { activities, loading } = useHistory();
+  const { activities, loading, markAsRead, markAllAsRead } = useHistory();
   
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
-  const [hasUnread, setHasUnread] = useState(false);
+  const unreadCount = activities.filter((a) => !a.read).length;
   
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-
-  const [prevLatestActivityId, setPrevLatestActivityId] = useState<string | null>(null);
-
-  const latestActivityId = activities[0]?.id || null;
-  if (latestActivityId !== prevLatestActivityId) {
-    setPrevLatestActivityId(latestActivityId);
-    if (latestActivityId && !isNotificationsOpen) {
-      setHasUnread(true);
-    }
-  }
 
   // Handle clicking outside the dropdown to close it
   useEffect(() => {
@@ -62,20 +54,10 @@ export function TopNav() {
   }, []);
 
   const handleToggleNotifications = () => {
-    setIsNotificationsOpen((prev) => {
-      if (!prev) {
-        setHasUnread(false);
-      }
-      return !prev;
-    });
+    setIsNotificationsOpen((prev) => !prev);
   };
 
-  const handleClearNotifications = () => {
-    setHasUnread(false);
-    setIsNotificationsOpen(false);
-  };
-
-  const recentNotifications = activities.slice(0, 5);
+  const recentNotifications = activities.slice(0, 8);
 
   return (
     <header className="h-16 border-b border-white/5 bg-background/80 backdrop-blur-xl sticky top-0 z-40 px-6 flex items-center justify-between">
@@ -101,8 +83,10 @@ export function TopNav() {
             }`}
           >
             <Bell className="w-5 h-5" />
-            {hasUnread && activities.length > 0 && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-background"></span>
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full border border-background text-[10px] font-bold flex items-center justify-center text-white">
+                {unreadCount}
+              </span>
             )}
           </button>
         </div>
@@ -116,7 +100,7 @@ export function TopNav() {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-12 w-80 bg-[#09090B]/90 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50 text-white overflow-hidden pointer-events-auto"
+              className="absolute right-0 top-12 w-80 bg-[#09090B]/95 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl z-50 text-white overflow-hidden pointer-events-auto"
             >
               {/* Top gradient indicator */}
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#7C3AED] to-[#22D3EE]" />
@@ -125,18 +109,18 @@ export function TopNav() {
                 <div className="flex justify-between items-center pb-3 border-b border-white/5 mb-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold">Activity Feed</span>
-                    {activities.length > 0 && (
+                    {unreadCount > 0 && (
                       <span className="px-1.5 py-0.5 bg-[#7C3AED]/20 text-[#A855F7] rounded-full text-[10px] font-bold">
-                        {activities.length}
+                        {unreadCount} unread
                       </span>
                     )}
                   </div>
-                  {activities.length > 0 && (
+                  {unreadCount > 0 && (
                     <button
-                      onClick={handleClearNotifications}
-                      className="text-xs text-gray-400 hover:text-white transition-colors font-medium"
+                      onClick={() => markAllAsRead()}
+                      className="text-xs text-[#22D3EE] hover:text-white transition-colors font-medium"
                     >
-                      Clear badge
+                      Mark all as read
                     </button>
                   )}
                 </div>
@@ -151,27 +135,81 @@ export function TopNav() {
                       No recent activities.
                     </div>
                   ) : (
-                    recentNotifications.map((activity) => (
-                      <div
-                        key={activity.id}
-                        className="flex gap-3 text-xs leading-normal p-2.5 rounded-xl hover:bg-white/[0.04] transition-all border border-transparent hover:border-white/5"
-                      >
-                        <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
-                          {getActivityIcon(activity.type)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-gray-200 font-medium break-words">{activity.title}</p>
-                          <div className="flex items-center gap-1.5 mt-1 text-[10px] text-gray-500 font-medium">
-                            <Clock className="w-3.5 h-3.5 shrink-0" />
-                            <span>
-                              {activity.createdAt
-                                ? formatDistanceToNow(activity.createdAt.toDate(), { addSuffix: true })
-                                : "Just now"}
-                            </span>
+                    recentNotifications.map((activity) => {
+                      const hasLink = !!activity.link;
+                      return (
+                        <div
+                          key={activity.id}
+                          onClick={async () => {
+                            await markAsRead(activity.id);
+                            if (hasLink && activity.link) {
+                              router.push(activity.link);
+                              setIsNotificationsOpen(false);
+                            }
+                          }}
+                          className={`flex gap-3 text-xs leading-normal p-2.5 rounded-xl hover:bg-white/[0.06] border transition-all relative group cursor-pointer ${
+                            !activity.read
+                              ? "bg-[#7C3AED]/5 border-[#7C3AED]/20 hover:border-[#7C3AED]/40"
+                              : "bg-transparent border-transparent hover:border-white/5"
+                          }`}
+                        >
+                          {/* Unread indicator dot */}
+                          {!activity.read && (
+                            <span className="absolute top-3 right-3 w-1.5 h-1.5 bg-[#22D3EE] rounded-full"></span>
+                          )}
+
+                          <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center shrink-0">
+                            {getActivityIcon(activity.type)}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0 pr-6">
+                            <p className={`font-medium break-words ${!activity.read ? "text-white" : "text-gray-300"}`}>
+                              {activity.title}
+                            </p>
+                            <div className="flex items-center gap-1.5 mt-1 text-[10px] text-gray-500 font-medium">
+                              <Clock className="w-3.5 h-3.5 shrink-0" />
+                              <span>
+                                {activity.createdAt
+                                  ? formatDistanceToNow(activity.createdAt.toDate(), { addSuffix: true })
+                                  : "Just now"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Action buttons on hover */}
+                          <div className="absolute right-2 bottom-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                            {hasLink && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markAsRead(activity.id);
+                                  if (activity.link) {
+                                    router.push(activity.link);
+                                    setIsNotificationsOpen(false);
+                                  }
+                                }}
+                                className="p-1 text-[#22D3EE] hover:text-white hover:bg-white/5 rounded transition-colors"
+                                title="View details"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {!activity.read && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  markAsRead(activity.id);
+                                }}
+                                className="p-1 text-emerald-400 hover:text-white hover:bg-white/5 rounded transition-colors"
+                                title="Mark as read"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

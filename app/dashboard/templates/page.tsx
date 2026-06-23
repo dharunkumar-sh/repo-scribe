@@ -6,6 +6,7 @@ import { Badge } from "../components/ui/Badge";
 import { LayoutTemplate, Star, Plus, Search, Eye } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
+import { useHistory } from "@/context/HistoryContext";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
@@ -298,6 +299,7 @@ function TemplatePreview({ template }: { template: Template }) {
 
 export default function TemplatesPage() {
   const { user } = useAuth();
+  const { addActivity } = useHistory();
   const router = useRouter();
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [activeCategory, setActiveCategory] = useState("All");
@@ -397,6 +399,14 @@ export default function TemplatesPage() {
 
       await setDoc(docRef, { items: updatedItems }, { merge: true });
       setFavoritedIds(updatedIds);
+
+      addActivity(
+        isFav ? `Removed template from favourites: ${template.name}` : `Favourited template: ${template.name}`,
+        "favourite",
+        isFav ? "default" : "success",
+        "/dashboard/templates"
+      ).catch(() => {});
+
       toast.success(isFav ? "Removed from favorites" : "Added to favorites!");
     } catch (err) {
       console.error("Error updating favorite in Firestore:", err);

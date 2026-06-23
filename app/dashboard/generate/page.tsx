@@ -324,6 +324,35 @@ export default function GeneratePage() {
       items.push(newItem);
 
       await setDoc(docRef, { items }, { merge: true });
+
+      // Sync with favorites collection if favorited
+      if (isFavorite) {
+        try {
+          const favRef = doc(db, "favorites", user.uid);
+          const favSnap = await getDoc(favRef);
+          let favItems: any[] = [];
+          if (favSnap.exists() && Array.isArray(favSnap.data().items)) {
+            favItems = favSnap.data().items;
+          }
+          
+          favItems.push({
+            id: newId,
+            type: "README",
+            title: title.trim(),
+            description: description.trim() || "Generated README",
+            date: "Just now",
+            repo: url || "",
+          });
+          
+          await setDoc(favRef, { items: favItems }, { merge: true });
+          addActivity(`Favourited README: ${title.trim()}`, "favourite", "success", `/dashboard/readme?id=${newId}`).catch(() => {});
+        } catch (favErr) {
+          console.error("Error syncing favorite on save:", favErr);
+        }
+      }
+
+      addActivity(`Saved README: ${title.trim()}`, "generate", "success", `/dashboard/readme?id=${newId}`).catch(() => {});
+
       toast.success("README saved successfully!", { id: toastId });
       router.push(`/dashboard/readme?id=${newId}`);
     } catch (error) {
