@@ -17,7 +17,6 @@ import {
   User as UserIcon,
   LogOut,
   BookMarked,
-  FileCode2,
   Lock,
 } from "lucide-react";
 import Image from "next/image";
