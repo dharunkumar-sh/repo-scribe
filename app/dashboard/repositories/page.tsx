@@ -1,18 +1,44 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useGithubStore } from "@/store/useGithubStore";
 import { RepositoryCard } from "../components/ui/RepositoryCard";
 import { CustomSelect } from "../components/ui/CustomSelect";
-import { Search, Filter, SortDesc } from "lucide-react";
+import { Search, Filter, SortDesc, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
+import { fetchGithubRepos, GithubRepo } from "@/lib/github";
+import { toast } from "react-hot-toast";
 
 export default function GitHubRepositoriesPage() {
-  const { repos, isConnected } = useGithubStore();
+  const { repos, isConnected, token, setRepos } = useGithubStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<"updated" | "stars" | "name">("updated");
   const [languageFilter, setLanguageFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = async (signal?: AbortSignal) => {
+    if (!token) return;
+    setIsSyncing(true);
+    try {
+      const reposData = await fetchGithubRepos(token, signal);
+      setRepos(reposData);
+      toast.success("Repositories synced successfully!");
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
+      toast.error("Failed to sync repositories.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isConnected && token && repos.length === 0) {
+      const controller = new AbortController();
+      handleSync(controller.signal);
+      return () => controller.abort();
+    }
+  }, [isConnected, token]);
 
   // Dynamic language options extracted from repositories
   const languageOptions = useMemo(() => {
@@ -75,7 +101,7 @@ export default function GitHubRepositoriesPage() {
   }, [repos, searchQuery, sortOption, languageFilter, typeFilter]);
 
   // Mock health score calculation based on some factors
-  const calculateHealthScore = (repo: any) => {
+  const calculateHealthScore = (repo: GithubRepo) => {
     let score = 50; // base score
     if (repo.description) score += 15;
     if (repo.has_wiki || repo.has_pages) score += 10;
@@ -97,7 +123,19 @@ export default function GitHubRepositoriesPage() {
       {/* Header & Controls */}
       <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center">
         <div>
-          <h2 className="text-xl font-bold text-white">Repository Manager</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-white">Repository Manager</h2>
+            {isConnected && (
+              <button
+                onClick={handleSync}
+                disabled={isSyncing}
+                className="p-1.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg border border-white/10 transition-colors disabled:opacity-50 cursor-pointer flex items-center justify-center shrink-0"
+                title="Sync Repositories"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+              </button>
+            )}
+          </div>
           <p className="text-sm text-gray-400">Analyze health and manage your GitHub repositories.</p>
         </div>
         
@@ -109,7 +147,7 @@ export default function GitHubRepositoriesPage() {
               placeholder="Search repositories..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#09090B] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/50 focus:border-transparent transition-all"
+              className="w-full bg-background border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-transparent transition-all"
             />
           </div>
 

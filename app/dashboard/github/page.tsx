@@ -361,6 +361,7 @@ function GitHubOverviewPageInner() {
                 src={profile.avatar_url}
                 alt={profile.login}
                 fill
+                sizes="80px"
                 className="object-cover"
               />
             </div>

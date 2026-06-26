@@ -35,6 +35,8 @@ export interface GithubRepo {
   visibility: string;
   updated_at: string;
   topics: string[];
+  has_wiki: boolean;
+  has_pages: boolean;
   license: {
     key: string;
     name: string;
@@ -58,19 +60,38 @@ export const fetchGithubProfile = async (token: string, signal?: AbortSignal): P
 };
 
 export const fetchGithubRepos = async (token: string, signal?: AbortSignal): Promise<GithubRepo[]> => {
-  const response = await fetch(`${GITHUB_API_URL}/user/repos?sort=updated&per_page=100`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: "application/vnd.github.v3+json",
-    },
-    signal,
-  });
+  const allRepos: GithubRepo[] = [];
+  let page = 1;
 
-  if (!response.ok) {
-    throw new Error("Failed to fetch GitHub repositories");
+  while (true) {
+    const response = await fetch(
+      `${GITHUB_API_URL}/user/repos?type=all&sort=updated&per_page=100&page=${page}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github.v3+json",
+        },
+        signal,
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to fetch GitHub repositories");
+    }
+
+    const repos: GithubRepo[] = await response.json();
+
+    if (repos.length === 0) break;
+
+    allRepos.push(...repos);
+
+    // If we got fewer than 100, this is the last page
+    if (repos.length < 100) break;
+
+    page++;
   }
 
-  return response.json();
+  return allRepos;
 };
 
 // We will add more specific functions here (GraphQL for heatmaps, etc.) later.
