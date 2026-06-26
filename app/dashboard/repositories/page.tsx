@@ -127,7 +127,7 @@ export default function GitHubRepositoriesPage() {
             <h2 className="text-xl font-bold text-white">Repository Manager</h2>
             {isConnected && (
               <button
-                onClick={handleSync}
+                onClick={() => handleSync()}
                 disabled={isSyncing}
                 className="p-1.5 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white rounded-lg border border-white/10 transition-colors disabled:opacity-50 cursor-pointer flex items-center justify-center shrink-0"
                 title="Sync Repositories"
