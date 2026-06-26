@@ -6,7 +6,7 @@ import { useGithubStore } from "@/store/useGithubStore";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
-import { Wand2, Save, Eye, Code, Copy, Check, RefreshCw, ArrowLeft } from "lucide-react";
+import { Wand2, Save, Eye, Code, Copy, Check, RefreshCw, ArrowLeft, Star } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import toast from "react-hot-toast";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -51,6 +51,9 @@ export default function GitHubReadmePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [title, setTitle] = useState("Profile README");
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [readmeRepoUrl, setReadmeRepoUrl] = useState<string | null>(null);
+  const [readmeDescription, setReadmeDescription] = useState<string | null>(null);
 
   const abortRef = useRef<AbortController | null>(null);
 
@@ -68,6 +71,9 @@ export default function GitHubReadmePage() {
             if (item) {
               setMarkdown(item.markdown);
               setTitle(item.title);
+              setIsFavorite(item.isFavorite || false);
+              setReadmeRepoUrl(item.repoUrl || null);
+              setReadmeDescription(item.description || null);
             } else {
               toast.error("README not found");
               router.push("/dashboard/collections");
@@ -85,6 +91,9 @@ export default function GitHubReadmePage() {
         } else {
           setMarkdown("# New Custom README\n\nStart typing your content here...");
           setTitle("Untitled README");
+          setIsFavorite(false);
+          setReadmeRepoUrl(null);
+          setReadmeDescription("Created manually");
         }
       } catch (err: any) {
         if (err.name !== "AbortError") {
@@ -121,6 +130,8 @@ export default function GitHubReadmePage() {
     setIsGenerating(true);
     setMarkdown("");
     setActiveTab("preview");
+
+    const toastId = toast.loading("Analyzing GitHub profile...");
 
     // Extract top repos and languages from store
     const topRepos = [...(repos || [])]
@@ -167,6 +178,8 @@ export default function GitHubReadmePage() {
         throw new Error(err.error || "Failed to generate profile README");
       }
 
+      toast.loading("Streaming profile README...", { id: toastId });
+
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
 
@@ -177,16 +190,20 @@ export default function GitHubReadmePage() {
         setMarkdown((prev) => prev + chunk);
       }
 
-      toast.success("Profile README generated!");
+      toast.success("Profile README generated!", { id: toastId });
       addActivity(
         `Generated profile README for @${profile?.login || "user"}`,
         "generate",
-        "success"
+        "success",
+        "/dashboard/readme"
       ).catch(() => {});
     } catch (err: any) {
-      if (err.name === "AbortError" || err.message?.includes("aborted") || err.message?.includes("AbortError")) return;
+      if (err.name === "AbortError" || err.message?.includes("aborted") || err.message?.includes("AbortError")) {
+        toast.dismiss(toastId);
+        return;
+      }
       console.error(err);
-      toast.error(err.message || "Failed to generate README. Try again.");
+      toast.error(err.message || "Failed to generate README. Try again.", { id: toastId });
     } finally {
       setIsGenerating(false);
     }
@@ -198,6 +215,7 @@ export default function GitHubReadmePage() {
       return;
     }
     setIsSaving(true);
+    const toastId = toast.loading("Saving README...");
     try {
       if (readmeId) {
         const docRef = doc(db, "saved_readmes", user.uid);
@@ -205,10 +223,57 @@ export default function GitHubReadmePage() {
         if (snap.exists()) {
           const items = snap.data().items || [];
           const updatedItems = items.map((i: SavedReadme) =>
-            i.id === readmeId ? { ...i, title, markdown, updatedAt: new Date().toISOString() } : i
+            i.id === readmeId ? { ...i, title, markdown, isFavorite, updatedAt: new Date().toISOString() } : i
           );
           await setDoc(docRef, { items: updatedItems }, { merge: true });
-          toast.success("README updated!");
+
+          // Sync with favorites collection
+          try {
+            const favRef = doc(db, "favorites", user.uid);
+            const favSnap = await getDoc(favRef);
+            let favItems: any[] = [];
+            if (favSnap.exists() && Array.isArray(favSnap.data().items)) {
+              favItems = favSnap.data().items;
+            }
+            
+            let updatedFavItems: any[];
+            if (isFavorite) {
+              const exists = favItems.some((fav) => String(fav.id) === String(readmeId));
+              if (!exists) {
+                favItems.push({
+                  id: readmeId,
+                  type: "README",
+                  title: title || "Untitled README",
+                  description: readmeDescription || "Saved README",
+                  date: "Just now",
+                  repo: readmeRepoUrl || "",
+                });
+                addActivity(`Favourited README: ${title || "Untitled README"}`, "favourite", "success", `/dashboard/readme?id=${readmeId}`).catch(() => {});
+              } else {
+                favItems = favItems.map((fav) => 
+                  String(fav.id) === String(readmeId)
+                    ? { ...fav, title: title || "Untitled README", description: readmeDescription || "Saved README", repo: readmeRepoUrl || "" }
+                    : fav
+                );
+              }
+              updatedFavItems = favItems;
+            } else {
+              const wasFavorite = favItems.some((fav) => String(fav.id) === String(readmeId));
+              updatedFavItems = favItems.filter((fav) => String(fav.id) !== String(readmeId));
+              if (wasFavorite) {
+                addActivity(`Removed README from favourites: ${title || "Untitled README"}`, "favourite", "default", `/dashboard/readme?id=${readmeId}`).catch(() => {});
+              }
+            }
+            await setDoc(favRef, { items: updatedFavItems }, { merge: true });
+          } catch (favErr) {
+            console.error("Error syncing favorite on update:", favErr);
+          }
+
+          addActivity(`Updated README: ${title}`, "edit_template", "success", `/dashboard/readme?id=${readmeId}`).catch(() => {});
+
+          toast.success("README updated!", { id: toastId });
+        } else {
+          toast.error("Failed to update: document not found.", { id: toastId });
         }
       } else if (isNew) {
         const newId = Date.now().toString();
@@ -223,22 +288,49 @@ export default function GitHubReadmePage() {
           markdown,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
-          isFavorite: false,
+          isFavorite,
           collectionIds: [],
         };
 
         items.push(newReadme);
         await setDoc(docRef, { items }, { merge: true });
-        toast.success("New README saved!");
+
+        // Sync with favorites if checked
+        if (isFavorite) {
+          try {
+            const favRef = doc(db, "favorites", user.uid);
+            const favSnap = await getDoc(favRef);
+            let favItems: any[] = [];
+            if (favSnap.exists() && Array.isArray(favSnap.data().items)) {
+              favItems = favSnap.data().items;
+            }
+            favItems.push({
+              id: newId,
+              type: "README",
+              title: title || "Untitled README",
+              description: "Created manually",
+              date: "Just now",
+              repo: "",
+            });
+            await setDoc(favRef, { items: favItems }, { merge: true });
+            addActivity(`Favourited README: ${title || "Untitled README"}`, "favourite", "success", `/dashboard/readme?id=${newId}`).catch(() => {});
+          } catch (favErr) {
+            console.error("Error syncing favorite on new save:", favErr);
+          }
+        }
+
+        addActivity(`Saved README: ${title || "Untitled README"}`, "generate", "success", `/dashboard/readme?id=${newId}`).catch(() => {});
+
+        toast.success("New README saved!", { id: toastId });
         router.push(`/dashboard/readme?id=${newId}`);
       } else {
         const docRef = doc(db, "readmes", user.uid);
         await setDoc(docRef, { markdown, updatedAt: new Date().toISOString() }, { merge: true });
-        toast.success("Profile README saved!");
+        toast.success("Profile README saved!", { id: toastId });
       }
     } catch (err) {
       console.error(err);
-      toast.error("Failed to save README.");
+      toast.error("Failed to save README.", { id: toastId });
     } finally {
       setIsSaving(false);
     }
@@ -350,6 +442,23 @@ export default function GitHubReadmePage() {
           )}
 
           <div className="flex items-center gap-2">
+            {(readmeId || isNew) && (
+              <button
+                type="button"
+                onClick={() => {
+                  const newFav = !isFavorite;
+                  setIsFavorite(newFav);
+                  toast.success(newFav ? "Marked as favourite (click Save to apply)" : "Removed from favourites (click Save to apply)");
+                }}
+                className={`p-1.5 rounded-lg border transition-all ${
+                  isFavorite ? "bg-yellow-500/10 border-yellow-500/30 text-yellow-400" : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                }`}
+                title={isFavorite ? "Remove from Favourites" : "Add to Favourites"}
+              >
+                <Star className={`w-4 h-4 ${isFavorite ? "fill-yellow-400" : ""}`} />
+              </button>
+            )}
+
             <button
               onClick={handleSave}
               disabled={isSaving}

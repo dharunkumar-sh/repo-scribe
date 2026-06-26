@@ -1,7 +1,8 @@
 "use client";
 
+import { useState, useEffect, ComponentProps } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useHistory } from "@/context/HistoryContext";
+import { useHistory, ActivityStatus } from "@/context/HistoryContext";
 import { GlassCard } from "./components/ui/GlassCard";
 import { AnimatedStat } from "./components/ui/AnimatedStat";
 import { Badge } from "./components/ui/Badge";
@@ -10,6 +11,9 @@ import { ArrowRight, Clock, Star, FileText, GitMerge, FileCode2, BarChart3, Layo
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import { db } from "@/lib/firebase";
+import { doc, getDoc } from "firebase/firestore";
+import { FavoriteItem } from "@/lib/types";
 
 const quickActions = [
   {
@@ -74,17 +78,58 @@ function getActivityIcon(type: string) {
   }
 }
 
+function getBadgeVariant(status: ActivityStatus): "default" | "primary" | "accent" | "outline" | "success" | "warning" {
+  switch (status) {
+    case "success":
+      return "success";
+    case "accent":
+      return "accent";
+    case "warning":
+      return "warning";
+    case "error":
+      return "warning";
+    default:
+      return "default";
+  }
+}
+
 export default function DashboardPage() {
   const { user } = useAuth();
   const { activities, loading } = useHistory();
+  const [dbFavoritesCount, setDbFavoritesCount] = useState<number>(0);
   
   const firstName = user?.displayName?.split(" ")[0] || user?.email?.split("@")[0] || "Developer";
 
   // Calculate dynamic stats based on recent activities
   const readmesGenerated = activities.filter(a => a.type === 'generate').length;
   const reposProcessed = activities.filter(a => ['generate', 'github_connect'].includes(a.type)).length;
-  const templatesEdited = activities.filter(a => a.type === 'edit_template').length;
-  const templatesFavourited = activities.filter(a => a.type === 'favourite').length;
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    let active = true;
+    const fetchUserFavorites = async () => {
+      try {
+        const docRef = doc(db, "favorites", user.uid);
+        const docSnap = await getDoc(docRef);
+        if (active && docSnap.exists()) {
+          const data = docSnap.data();
+          if (data && Array.isArray(data.items)) {
+            const count = data.items.filter((item: FavoriteItem) => item.type === "Template").length;
+            setDbFavoritesCount(count);
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching favorites count:", err);
+      }
+    };
+    fetchUserFavorites();
+    return () => {
+      active = false;
+    };
+  }, [user]);
 
   return (
     <motion.div 
@@ -113,19 +158,16 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* Stats Cards */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <GlassCard className="p-6">
           <AnimatedStat value={reposProcessed} label="Repositories Processed" />
         </GlassCard>
         <GlassCard className="p-6">
-          <AnimatedStat value={readmesGenerated} label="READMEs Generated" />
-        </GlassCard>
-        <GlassCard className="p-6">
-          <AnimatedStat value={templatesEdited} label="Templates Edited" />
+          <AnimatedStat value={readmesGenerated} label="Readme Generated" />
         </GlassCard>
         <GlassCard className="p-6 relative overflow-hidden">
           <div className="absolute -right-4 -top-4 w-24 h-24 bg-[#22D3EE]/20 rounded-full blur-xl pointer-events-none" />
-          <AnimatedStat value={templatesFavourited} label="Templates Favourited" />
+          <AnimatedStat value={dbFavoritesCount} label="Templates Favourited" />
         </GlassCard>
       </motion.div>
 
@@ -187,7 +229,7 @@ export default function DashboardPage() {
                             ? formatDistanceToNow(activity.createdAt.toDate(), { addSuffix: true }) 
                             : "Just now"}
                         </span>
-                        <Badge variant={activity.status as any} className="ml-2 scale-90 origin-left">
+                        <Badge variant={getBadgeVariant(activity.status)} className="ml-2 scale-90 origin-left">
                           {activity.status === 'default' ? 'info' : activity.status}
                         </Badge>
                       </div>
@@ -203,7 +245,7 @@ export default function DashboardPage() {
   );
 }
 
-function SparklesIcon(props: any) {
+function SparklesIcon(props: ComponentProps<"svg">) {
   return (
     <svg
       {...props}

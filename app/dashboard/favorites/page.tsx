@@ -9,11 +9,13 @@ import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import toast from "react-hot-toast";
+import { useHistory } from "@/context/HistoryContext";
 
 import { FavoriteItem } from "@/lib/types";
 
 export default function FavoritesPage() {
   const { user } = useAuth();
+  const { addActivity } = useHistory();
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("All");
@@ -64,11 +66,43 @@ export default function FavoritesPage() {
 
   const handleRemoveFavorite = async (itemId: string | number) => {
     if (!user) return;
+    const removedItem = favorites.find((fav) => fav.id === itemId);
+    if (!removedItem) return;
+
     const updatedFavorites = favorites.filter((fav) => fav.id !== itemId);
     setFavorites(updatedFavorites);
     try {
       const docRef = doc(db, "favorites", user.uid);
       await setDoc(docRef, { items: updatedFavorites }, { merge: true });
+
+      // If it's a README, also update the isFavorite status in saved_readmes document
+      if (removedItem.type === "README") {
+        try {
+          const readmeRef = doc(db, "saved_readmes", user.uid);
+          const readmeSnap = await getDoc(readmeRef);
+          if (readmeSnap.exists()) {
+            const readmeData = readmeSnap.data();
+            if (readmeData && Array.isArray(readmeData.items)) {
+              const updatedReadmes = readmeData.items.map((item: any) => 
+                String(item.id) === String(itemId) 
+                  ? { ...item, isFavorite: false } 
+                  : item
+              );
+              await setDoc(readmeRef, { items: updatedReadmes }, { merge: true });
+            }
+          }
+        } catch (readmeErr) {
+          console.error("Error updating saved_readmes favorite status:", readmeErr);
+        }
+      }
+
+      addActivity(
+        `Removed from favourites: ${removedItem.title}`,
+        "favourite",
+        "default",
+        removedItem.type === "README" ? `/dashboard/readme?id=${removedItem.id}` : "/dashboard/templates"
+      ).catch(() => {});
+
       toast.success("Removed from favorites");
     } catch (error) {
       console.error("Error removing favorite from Firestore:", error);

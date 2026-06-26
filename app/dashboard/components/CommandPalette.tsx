@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback, ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -13,7 +13,6 @@ import {
   Star,
   BarChart3,
   BookMarked,
-  FileCode2,
   ChevronRight,
   ExternalLink,
   FolderDot,
@@ -22,7 +21,16 @@ import { useDashboardStore } from "@/store/useDashboardStore";
 import { useGithubStore } from "@/store/useGithubStore";
 import { GithubIcon } from "@/app/dashboard/components/ui/GithubIcon";
 
-const FEATURES = [
+export interface CommandPaletteItem {
+  label: string;
+  href: string;
+  icon: ComponentType<{ className?: string }>;
+  category: string;
+  isExternal?: boolean;
+  subtitle?: string;
+}
+
+const FEATURES: CommandPaletteItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard, category: "Navigation" },
   { label: "Generate README", href: "/dashboard/generate", icon: Sparkles, category: "Navigation" },
   { label: "Templates", href: "/dashboard/templates", icon: LayoutTemplate, category: "Navigation" },
@@ -44,7 +52,7 @@ export function CommandPalette() {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   // Filter and build combined list
-  const filteredItems = useMemo(() => {
+  const filteredItems = useMemo((): CommandPaletteItem[] => {
     const q = searchQuery.toLowerCase().trim();
 
     // 1. Filter static features
@@ -75,7 +83,7 @@ export function CommandPalette() {
     return [...matchedFeatures, ...matchedRepos];
   }, [searchQuery, repos, isConnected]);
 
-  const handleSelect = (item: any) => {
+  const handleSelect = useCallback((item: CommandPaletteItem) => {
     if (item.isExternal) {
       window.open(item.href, "_blank", "noreferrer");
     } else {
@@ -83,20 +91,10 @@ export function CommandPalette() {
     }
     setCommandPaletteOpen(false);
     setSearchQuery("");
-  };
-
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [searchQuery]);
+  }, [router, setCommandPaletteOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Toggle Command Palette
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        toggleCommandPalette();
-      }
-
       if (!isCommandPaletteOpen) return;
 
       if (e.key === "Escape") {
@@ -117,11 +115,11 @@ export function CommandPalette() {
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isCommandPaletteOpen, toggleCommandPalette, setCommandPaletteOpen, filteredItems, selectedIndex]);
+  }, [isCommandPaletteOpen, toggleCommandPalette, setCommandPaletteOpen, filteredItems, selectedIndex, handleSelect]);
 
   // Group items by category for rendering while preserving flat index tracking
   const groupedItems = useMemo(() => {
-    const groups: Record<string, { item: any; globalIndex: number }[]> = {};
+    const groups: Record<string, { item: CommandPaletteItem; globalIndex: number }[]> = {};
     filteredItems.forEach((item, globalIndex) => {
       if (!groups[item.category]) {
         groups[item.category] = [];
@@ -157,7 +155,10 @@ export function CommandPalette() {
                   autoFocus
                   type="text"
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setSelectedIndex(0);
+                  }}
                   placeholder="Search repositories, pages, settings..."
                   className="flex-1 bg-transparent border-none outline-none text-white placeholder:text-gray-500 text-sm"
                 />

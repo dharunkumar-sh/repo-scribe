@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
-import { Code2, User, Settings, LayoutDashboard, LogOut } from "lucide-react";
+import { Code2, LayoutDashboard, LogOut } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
@@ -103,25 +103,11 @@ export default function Navbar() {
                     </div>
 
                     <Link
-                      href="/dashboard/settings"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-white hover:bg-white/5 flex items-center gap-3 transition-colors"
-                    >
-                      <User className="w-4 h-4" /> Profile
-                    </Link>
-                    <Link
                       href="/dashboard"
                       onClick={() => setIsDropdownOpen(false)}
                       className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-white hover:bg-white/5 flex items-center gap-3 transition-colors"
                     >
                       <LayoutDashboard className="w-4 h-4" /> Dashboard
-                    </Link>
-                    <Link
-                      href="/dashboard/settings"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-white hover:bg-white/5 flex items-center gap-3 transition-colors"
-                    >
-                      <Settings className="w-4 h-4" /> Settings
                     </Link>
 
                     <div className="h-px bg-white/5 my-2" />

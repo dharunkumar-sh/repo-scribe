@@ -189,6 +189,8 @@ export default function GeneratePage() {
       abortRef.current?.abort();
       abortRef.current = new AbortController();
 
+      const toastId = toast.loading("Analyzing repository...");
+
       try {
         const res = await fetch("/api/ai/generate-readme", {
           method: "POST",
@@ -207,6 +209,7 @@ export default function GeneratePage() {
         }
 
         setPhase("streaming");
+        toast.loading("Streaming README content...", { id: toastId });
 
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
@@ -219,6 +222,7 @@ export default function GeneratePage() {
         }
 
         setPhase("done");
+        toast.success("README ready!", { id: toastId });
         // Log to activity history
         const label = finalUrl
           ? `Generated README for ${finalUrl.split("/").slice(-2).join("/")}`
@@ -231,10 +235,11 @@ export default function GeneratePage() {
           err.message?.includes("AbortError")
         ) {
           setPhase("idle");
+          toast.dismiss(toastId);
           return;
         }
         console.error(err);
-        toast.error(err.message || "Something went wrong. Please try again.");
+        toast.error(err.message || "Something went wrong. Please try again.", { id: toastId });
         setPhase("idle");
       }
     },
@@ -244,6 +249,7 @@ export default function GeneratePage() {
   const handleCreateCollection = async () => {
     if (!newCollectionName.trim() || !user) return;
     setIsCreatingCollection(true);
+    const toastId = toast.loading("Creating collection...");
     try {
       const docRef = doc(db, "collections", user.uid);
       const docSnap = await getDoc(docRef);
@@ -266,10 +272,10 @@ export default function GeneratePage() {
       setSelectedCollectionId(String(newId));
       setNewCollectionName("");
       setShowInlineCreate(false);
-      toast.success("Collection created!");
+      toast.success("Collection created!", { id: toastId });
     } catch (error) {
       console.error(error);
-      toast.error("Failed to create collection");
+      toast.error("Failed to create collection", { id: toastId });
     } finally {
       setIsCreatingCollection(false);
     }
@@ -292,6 +298,7 @@ export default function GeneratePage() {
 
     setIsSaving(true);
     const newId = Date.now().toString();
+    const toastId = toast.loading("Saving README...");
 
     try {
       const docRef = doc(db, "saved_readmes", user.uid);
@@ -317,11 +324,40 @@ export default function GeneratePage() {
       items.push(newItem);
 
       await setDoc(docRef, { items }, { merge: true });
-      toast.success("README saved successfully!");
+
+      // Sync with favorites collection if favorited
+      if (isFavorite) {
+        try {
+          const favRef = doc(db, "favorites", user.uid);
+          const favSnap = await getDoc(favRef);
+          let favItems: any[] = [];
+          if (favSnap.exists() && Array.isArray(favSnap.data().items)) {
+            favItems = favSnap.data().items;
+          }
+          
+          favItems.push({
+            id: newId,
+            type: "README",
+            title: title.trim(),
+            description: description.trim() || "Generated README",
+            date: "Just now",
+            repo: url || "",
+          });
+          
+          await setDoc(favRef, { items: favItems }, { merge: true });
+          addActivity(`Favourited README: ${title.trim()}`, "favourite", "success", `/dashboard/readme?id=${newId}`).catch(() => {});
+        } catch (favErr) {
+          console.error("Error syncing favorite on save:", favErr);
+        }
+      }
+
+      addActivity(`Saved README: ${title.trim()}`, "generate", "success", `/dashboard/readme?id=${newId}`).catch(() => {});
+
+      toast.success("README saved successfully!", { id: toastId });
       router.push(`/dashboard/readme?id=${newId}`);
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save README");
+      toast.error("Failed to save README", { id: toastId });
       setIsSaving(false);
     }
   };
