@@ -3,6 +3,7 @@
 import { useState, useMemo } from "react";
 import { useGithubStore } from "@/store/useGithubStore";
 import { RepositoryCard } from "../components/ui/RepositoryCard";
+import { CustomSelect } from "../components/ui/CustomSelect";
 import { Search, Filter, SortDesc } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -10,12 +11,59 @@ export default function GitHubRepositoriesPage() {
   const { repos, isConnected } = useGithubStore();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortOption, setSortOption] = useState<"updated" | "stars" | "name">("updated");
+  const [languageFilter, setLanguageFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
+
+  // Dynamic language options extracted from repositories
+  const languageOptions = useMemo(() => {
+    const langs = new Set<string>();
+    repos.forEach((repo) => {
+      if (repo.language) {
+        langs.add(repo.language);
+      }
+    });
+    return [
+      { value: "all", label: "All Languages" },
+      ...Array.from(langs).map((lang) => ({ value: lang, label: lang })),
+    ];
+  }, [repos]);
+
+  const typeOptions = [
+    { value: "all", label: "All Types" },
+    { value: "sources", label: "Sources" },
+    { value: "forks", label: "Forks" },
+    { value: "public", label: "Public" },
+    { value: "private", label: "Private" },
+  ];
+
+  const sortOptions = [
+    { value: "updated", label: "Recently Updated" },
+    { value: "stars", label: "Most Stars" },
+    { value: "name", label: "Alphabetical" },
+  ];
 
   const filteredAndSortedRepos = useMemo(() => {
-    let result = repos.filter(repo => 
-      repo.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      (repo.description && repo.description.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
+    let result = repos.filter(repo => {
+      const matchesSearch = 
+        repo.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        (repo.description && repo.description.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchesLanguage = 
+        languageFilter === "all" || repo.language === languageFilter;
+
+      let matchesType = true;
+      if (typeFilter === "sources") {
+        matchesType = !repo.fork;
+      } else if (typeFilter === "forks") {
+        matchesType = repo.fork;
+      } else if (typeFilter === "public") {
+        matchesType = repo.visibility === "public";
+      } else if (typeFilter === "private") {
+        matchesType = repo.visibility === "private";
+      }
+
+      return matchesSearch && matchesLanguage && matchesType;
+    });
 
     result.sort((a, b) => {
       if (sortOption === "stars") return b.stargazers_count - a.stargazers_count;
@@ -24,7 +72,7 @@ export default function GitHubRepositoriesPage() {
     });
 
     return result;
-  }, [repos, searchQuery, sortOption]);
+  }, [repos, searchQuery, sortOption, languageFilter, typeFilter]);
 
   // Mock health score calculation based on some factors
   const calculateHealthScore = (repo: any) => {
@@ -47,32 +95,47 @@ export default function GitHubRepositoriesPage() {
   return (
     <div className="space-y-6 pb-12">
       {/* Header & Controls */}
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+      <div className="flex flex-col xl:flex-row gap-4 justify-between items-start xl:items-center">
         <div>
           <h2 className="text-xl font-bold text-white">Repository Manager</h2>
           <p className="text-sm text-gray-400">Analyze health and manage your GitHub repositories.</p>
         </div>
         
-        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-row gap-3 w-full xl:w-auto">
+          <div className="relative w-full sm:col-span-2 md:w-64">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
             <input 
               type="text" 
               placeholder="Search repositories..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-[#7C3AED] transition-colors"
+              className="w-full bg-[#09090B] border border-white/10 rounded-xl pl-10 pr-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-[#7C3AED]/50 focus:border-transparent transition-all"
             />
           </div>
-          <select 
+
+          <CustomSelect
+            options={typeOptions}
+            value={typeFilter}
+            onChange={setTypeFilter}
+            icon={<Filter className="w-4 h-4 text-gray-400" />}
+            className="w-full md:w-44"
+          />
+
+          <CustomSelect
+            options={languageOptions}
+            value={languageFilter}
+            onChange={setLanguageFilter}
+            icon={<Filter className="w-4 h-4 text-gray-400" />}
+            className="w-full md:w-48"
+          />
+
+          <CustomSelect
+            options={sortOptions}
             value={sortOption}
-            onChange={(e) => setSortOption(e.target.value as any)}
-            className="bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-[#7C3AED] transition-colors appearance-none cursor-pointer"
-          >
-            <option value="updated">Recently Updated</option>
-            <option value="stars">Most Stars</option>
-            <option value="name">Alphabetical</option>
-          </select>
+            onChange={(val) => setSortOption(val as any)}
+            icon={<SortDesc className="w-4 h-4 text-gray-400" />}
+            className="w-full md:w-52"
+          />
         </div>
       </div>
 
