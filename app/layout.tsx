@@ -13,9 +13,11 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: "RepoScribe AI | Turn Any GitHub Repository Into a Stunning README",
-  description: "Paste your GitHub repository URL and let AI analyze your project to generate a polished, professional README in seconds.",
+  description:
+    "Paste your GitHub repository URL and let AI analyze your project to generate a polished, professional README in seconds.",
   icons: {
-    icon: "/logo.svg",
+    icon: "/favicon.svg?v=2",
+    apple: { url: "/favicon.svg?v=2", type: "image/svg+xml", sizes: "180x180" },
   },
 };
 

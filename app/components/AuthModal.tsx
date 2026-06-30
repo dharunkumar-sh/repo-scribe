@@ -5,6 +5,7 @@ import { X, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { auth, googleProvider } from "../../lib/firebase";
 import { 
   signInWithPopup, 
@@ -32,6 +33,7 @@ export default function AuthModal() {
   // Reset state when modal opens/closes
   useEffect(() => {
     if (isAuthModalOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setMode("signin");
       setEmail("");
       setPassword("");
@@ -167,8 +169,14 @@ export default function AuthModal() {
             <div className="p-8">
               {/* Header */}
               <div className="text-center mb-8">
-                <div className="w-12 h-12 mx-auto rounded-xl bg-linear-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-2xl shadow-[0_0_15px_rgba(124,58,237,0.5)] mb-6">
-                  R
+                <div className="w-16 h-16 mx-auto rounded-xl  flex items-center justify-center shadow-[0_0_20px_rgba(124,58,237,0.4)] mb-6 overflow-hidden">
+                  <Image
+                    src="/logo.svg"
+                    alt="RepoScribe Logo"
+                    width={48}
+                    height={48}
+                    className="w-14 h-14 rounded-full object-cover"
+                  />
                 </div>
                 <h2 className="text-2xl font-bold text-foreground mb-2">
                   {mode === "signin" ? "Welcome back" : mode === "signup" ? "Create an account" : "Reset password"}
@@ -292,7 +300,7 @@ export default function AuthModal() {
               <div className="mt-6 text-center text-sm text-muted">
                 {mode === "signin" ? (
                   <p>
-                    Don't have an account?{" "}
+                    {"Don't have an account? "}
                     <button onClick={() => setMode("signup")} className="text-white hover:text-accent font-medium transition-colors cursor-pointer">
                       Sign Up
                     </button>
