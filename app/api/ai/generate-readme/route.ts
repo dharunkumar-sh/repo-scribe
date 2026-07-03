@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { buildIntelligentSystemPrompt } from "@/lib/templateEngine";
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY!;
-const MODEL = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-70b-instruct:free";
+const MODEL = process.env.OPENROUTER_MODEL || "qwen/qwen-2.5-coder-32b-instruct:free";
 
 async function fetchGitHubRepoContext(repoUrl: string): Promise<string> {
   try {
@@ -112,10 +112,11 @@ export async function POST(req: NextRequest) {
 
     const modelsToTry = [MODEL];
     const fallbacks = [
+      "qwen/qwen-2.5-coder-32b-instruct:free",
       "meta-llama/llama-3.3-70b-instruct:free",
+      "google/gemma-2-9b-it:free",
       "google/gemma-4-31b-it:free",
       "qwen/qwen3-next-80b-a3b-instruct:free",
-      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
     ];
     for (const f of fallbacks) {
       if (!modelsToTry.includes(f)) {
