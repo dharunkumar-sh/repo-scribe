@@ -125,6 +125,16 @@ export async function POST(req: NextRequest) {
     let lastStatus = 500;
 
     for (const model of modelsToTry) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      
+      const onAbort = () => {
+        controller.abort();
+      };
+      if (signal) {
+        signal.addEventListener("abort", onAbort);
+      }
+
       try {
         response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
@@ -144,8 +154,13 @@ export async function POST(req: NextRequest) {
             temperature: 0.7,
             max_tokens: 3000,
           }),
-          signal,
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
+        if (signal) {
+          signal.removeEventListener("abort", onAbort);
+        }
 
         if (response.ok) {
           break;
@@ -155,6 +170,16 @@ export async function POST(req: NextRequest) {
         lastErrorMsg = await response.text();
         console.warn(`Model ${model} failed with status ${lastStatus}. Error: ${lastErrorMsg}`);
       } catch (err: any) {
+        clearTimeout(timeoutId);
+        if (signal) {
+          signal.removeEventListener("abort", onAbort);
+        }
+        if (err?.name === "AbortError" && (!signal || !signal.aborted)) {
+          console.warn(`Model ${model} connection timed out, trying next...`);
+          lastStatus = 408;
+          lastErrorMsg = "Connection timed out";
+          continue;
+        }
         if (err?.name === "AbortError" || signal?.aborted) {
           throw err;
         }
@@ -178,8 +203,9 @@ export async function POST(req: NextRequest) {
     // Pipe the SSE stream, forward client abort to upstream
     const stream = new ReadableStream({
       async start(controller) {
-        const reader = response.body!.getReader();
+        const reader = response!.body!.getReader();
         const decoder = new TextDecoder();
+        let buffer = "";
 
         // Abort upstream reader when client disconnects
         signal?.addEventListener("abort", () => {
@@ -190,10 +216,25 @@ export async function POST(req: NextRequest) {
         try {
           while (true) {
             const { done, value } = await reader.read();
-            if (done) break;
+            if (done) {
+              if (buffer) {
+                const line = buffer.trim();
+                if (line.startsWith("data: ") && line !== "data: [DONE]") {
+                  try {
+                    const json = JSON.parse(line.slice(6));
+                    const token = json.choices?.[0]?.delta?.content;
+                    if (token) {
+                      controller.enqueue(new TextEncoder().encode(token));
+                    }
+                  } catch {}
+                }
+              }
+              break;
+            }
 
-            const chunk = decoder.decode(value, { stream: true });
-            const lines = chunk.split("\n");
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
 
             for (const line of lines) {
               const trimmed = line.trim();
@@ -214,7 +255,7 @@ export async function POST(req: NextRequest) {
           controller.close();
         } catch (err: any) {
           // Swallow abort errors silently
-          if (!controller.desiredSize === null) {
+          if (controller.desiredSize !== null) {
             controller.close();
           }
         }
