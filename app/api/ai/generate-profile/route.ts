@@ -59,30 +59,72 @@ ${topRepos?.length ? `Featured Projects:\n${topRepos.map(r => `- ${r.name}: ${r.
 
 Generate a stunning, personalized profile README now.`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://repo-scribe.app",
-        "X-Title": "RepoScribe",
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        stream: true,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userMessage },
-        ],
-        temperature: 0.8,
-        max_tokens: 2500,
-      }),
-      signal,
-    });
+    const modelsToTry = [MODEL];
+    const fallbacks = [
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "google/gemma-2-9b-it:free",
+      "qwen/qwen-2.5-72b-instruct:free",
+      "mistralai/mistral-7b-instruct:free",
+    ];
+    for (const f of fallbacks) {
+      if (!modelsToTry.includes(f)) {
+        modelsToTry.push(f);
+      }
+    }
 
-    if (!response.ok) {
-      const err = await response.text();
-      return NextResponse.json({ error: err }, { status: response.status });
+    let response: Response | null = null;
+    let lastErrorMsg = "";
+    let lastStatus = 500;
+
+    for (const model of modelsToTry) {
+      try {
+        response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://repo-scribe.app",
+            "X-Title": "RepoScribe",
+          },
+          body: JSON.stringify({
+            model: model,
+            stream: true,
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userMessage },
+            ],
+            temperature: 0.8,
+            max_tokens: 2500,
+          }),
+          signal,
+        });
+
+        if (response.ok) {
+          break;
+        }
+
+        lastStatus = response.status;
+        lastErrorMsg = await response.text();
+        console.warn(`Model ${model} failed with status ${lastStatus}. Error: ${lastErrorMsg}`);
+      } catch (err: any) {
+        if (err?.name === "AbortError" || signal?.aborted) {
+          throw err;
+        }
+        lastStatus = 500;
+        lastErrorMsg = err?.message || String(err);
+        console.error(`Fetch failed for model ${model}:`, err);
+      }
+    }
+
+    if (!response || !response.ok) {
+      let parsedError = lastErrorMsg;
+      try {
+        const parsed = JSON.parse(lastErrorMsg);
+        parsedError = parsed.error?.message || parsed.error || lastErrorMsg;
+      } catch {
+        // Not JSON
+      }
+      return NextResponse.json({ error: parsedError }, { status: lastStatus });
     }
 
     const stream = new ReadableStream({
