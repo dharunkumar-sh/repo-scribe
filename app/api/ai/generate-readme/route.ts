@@ -9,7 +9,10 @@ async function fetchGitHubRepoContext(repoUrl: string): Promise<string> {
     const match = repoUrl.match(/github\.com\/([^/]+)\/([^/?\s]+)/);
     if (!match) return "";
     const [, owner, repo] = match;
-    const headers: Record<string, string> = { Accept: "application/vnd.github.v3+json" };
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "RepoScribe-App",
+    };
 
     const [repoRes, packageRes, readmeRes] = await Promise.allSettled([
       fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers }),
