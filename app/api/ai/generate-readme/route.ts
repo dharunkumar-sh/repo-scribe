@@ -114,9 +114,8 @@ export async function POST(req: NextRequest) {
     const fallbacks = [
       "qwen/qwen-2.5-coder-32b-instruct:free",
       "meta-llama/llama-3.3-70b-instruct:free",
-      "google/gemma-2-9b-it:free",
-      "google/gemma-4-31b-it:free",
-      "qwen/qwen3-next-80b-a3b-instruct:free",
+      "openai/gpt-oss-20b:free",
+      "liquid/lfm-2.5-1.2b-instruct:free",
     ];
     for (const f of fallbacks) {
       if (!modelsToTry.includes(f)) {
@@ -130,7 +129,7 @@ export async function POST(req: NextRequest) {
 
     for (const model of modelsToTry) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
       
       const onAbort = () => {
         controller.abort();
