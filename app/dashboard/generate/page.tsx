@@ -189,7 +189,7 @@ export default function GeneratePage() {
       abortRef.current?.abort();
       abortRef.current = new AbortController();
 
-      const toastId = toast.loading("Analyzing repository...");
+      const toastId = toast.loading(finalUrl ? "Analyzing repository…" : "Preparing generation…");
 
       try {
         const res = await fetch("/api/ai/generate-readme", {
@@ -204,21 +204,32 @@ export default function GeneratePage() {
         });
 
         if (!res.ok) {
-          const err = await res.json();
-          throw new Error(err.error || "Failed to generate README");
+          let errMsg = "Failed to generate README. Please try again.";
+          try {
+            const errBody = await res.json();
+            errMsg = errBody.error || errMsg;
+          } catch { /* response body not JSON */ }
+          throw new Error(errMsg);
         }
 
         setPhase("streaming");
-        toast.loading("Streaming README content...", { id: toastId });
+        toast.loading("Generating README… this may take up to 30s on free models.", { id: toastId });
 
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
+        let totalChars = 0;
 
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           const chunk = decoder.decode(value, { stream: true });
+          totalChars += chunk.length;
           setStreamedMarkdown((prev) => prev + chunk);
+        }
+
+        // Guard against empty / broken model responses
+        if (totalChars < 50) {
+          throw new Error("The AI returned an empty response. Please try again — a different model will be used.");
         }
 
         setPhase("done");
@@ -239,8 +250,48 @@ export default function GeneratePage() {
           return;
         }
         console.error(err);
-        toast.error(err.message || "Something went wrong. Please try again.", { id: toastId });
         setPhase("idle");
+        // Show error with a retry button
+        toast.custom(
+          (t) => (
+            <div
+              style={{
+                background: "#18181b",
+                border: "1px solid #7c3aed",
+                borderRadius: "0.75rem",
+                padding: "0.75rem 1rem",
+                display: "flex",
+                alignItems: "center",
+                gap: "0.75rem",
+                color: "white",
+                maxWidth: "360px",
+              }}
+            >
+              <span style={{ fontSize: "0.875rem", flex: 1 }}>
+                {err.message || "Something went wrong. Please try again."}
+              </span>
+              <button
+                onClick={() => {
+                  toast.dismiss(t.id);
+                  startGeneration(undefined, finalPrompt, finalTheme, finalUrl);
+                }}
+                style={{
+                  background: "#7c3aed",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "0.5rem",
+                  padding: "0.35rem 0.75rem",
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Retry
+              </button>
+            </div>
+          ),
+          { id: toastId, duration: 10000 }
+        );
       }
     },
     [url, aiPrompt, theme, addActivity]

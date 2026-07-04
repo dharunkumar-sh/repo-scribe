@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { buildIntelligentSystemPrompt } from "@/lib/templateEngine";
+import { callOpenRouterWithFallback } from "@/lib/openrouter";
+
+/** Allow up to 90 seconds for free models that can be slow to respond */
+export const maxDuration = 90;
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY!;
-const MODEL = process.env.OPENROUTER_MODEL || "qwen/qwen-2.5-coder-32b-instruct:free";
+const PRIMARY_MODEL = process.env.OPENROUTER_MODEL || undefined;
+
+// ─── GitHub context fetcher ───────────────────────────────────────────────────
 
 async function fetchGitHubRepoContext(repoUrl: string): Promise<string> {
   try {
     const match = repoUrl.match(/github\.com\/([^/]+)\/([^/?\s]+)/);
     if (!match) return "";
     const [, owner, repo] = match;
+
     const headers: Record<string, string> = {
       Accept: "application/vnd.github.v3+json",
       "User-Agent": "RepoScribe-App",
@@ -34,20 +41,23 @@ async function fetchGitHubRepoContext(repoUrl: string): Promise<string> {
       context += `License: ${data.license?.name || "None"}\n`;
     }
 
-    // Fetch repository tree
+    // Repository file tree (up to 150 paths for structural context)
     try {
-      const treeRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`, { headers });
+      const treeRes = await fetch(
+        `https://api.github.com/repos/${owner}/${repo}/git/trees/${defaultBranch}?recursive=1`,
+        { headers }
+      );
       if (treeRes.ok) {
         const treeData = await treeRes.json();
-        if (treeData && treeData.tree) {
-          // Grab up to 150 important file paths to give the AI an idea of the structure
-          const paths = treeData.tree.map((t: any) => t.path).slice(0, 150);
-          context += `\nRepository File Tree (Partial):\n${paths.join('\n')}\n`;
+        if (treeData?.tree) {
+          const paths = (treeData.tree as { path: string }[])
+            .map((t) => t.path)
+            .slice(0, 150);
+          context += `\nRepository File Tree (Partial):\n${paths.join("\n")}\n`;
         }
       }
     } catch (e) {
-      // Ignore tree errors
-      console.error("Error fetching repository tree:", e);
+      console.warn("[RepoScribe] Error fetching repository tree:", e);
     }
 
     if (packageRes.status === "fulfilled" && packageRes.value.ok) {
@@ -77,9 +87,10 @@ async function fetchGitHubRepoContext(repoUrl: string): Promise<string> {
   }
 }
 
+// ─── Route handler ────────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const signal = req.signal;
+  const clientSignal = req.signal;
 
   try {
     const body = await req.json();
@@ -89,7 +100,7 @@ export async function POST(req: NextRequest) {
       theme?: string;
     };
 
-    // Build context
+    // Fetch GitHub repo context (non-blocking if it fails)
     let repoContext = "";
     if (repoUrl) {
       repoContext = await fetchGitHubRepoContext(repoUrl);
@@ -110,159 +121,17 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = buildIntelligentSystemPrompt(theme || null);
 
-    const modelsToTry = [MODEL];
-    const fallbacks = [
-      "qwen/qwen-2.5-coder-32b-instruct:free",
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "openai/gpt-oss-20b:free",
-      "liquid/lfm-2.5-1.2b-instruct:free",
-    ];
-    for (const f of fallbacks) {
-      if (!modelsToTry.includes(f)) {
-        modelsToTry.push(f);
-      }
-    }
-
-    let response: Response | null = null;
-    let lastErrorMsg = "";
-    let lastStatus = 500;
-
-    for (const model of modelsToTry) {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-      
-      const onAbort = () => {
-        controller.abort();
-      };
-      if (signal) {
-        signal.addEventListener("abort", onAbort);
-      }
-
-      try {
-        response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://repo-scribe.app",
-            "X-Title": "RepoScribe",
-          },
-          body: JSON.stringify({
-            model: model,
-            stream: true,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userMessage },
-            ],
-            temperature: 0.7,
-            max_tokens: 3000,
-          }),
-          signal: controller.signal,
-        });
-
-        clearTimeout(timeoutId);
-        if (signal) {
-          signal.removeEventListener("abort", onAbort);
-        }
-
-        if (response.ok) {
-          break;
-        }
-
-        lastStatus = response.status;
-        lastErrorMsg = await response.text();
-        console.warn(`Model ${model} failed with status ${lastStatus}. Error: ${lastErrorMsg}`);
-      } catch (err: any) {
-        clearTimeout(timeoutId);
-        if (signal) {
-          signal.removeEventListener("abort", onAbort);
-        }
-        if (err?.name === "AbortError" && (!signal || !signal.aborted)) {
-          console.warn(`Model ${model} connection timed out, trying next...`);
-          lastStatus = 408;
-          lastErrorMsg = "Connection timed out";
-          continue;
-        }
-        if (err?.name === "AbortError" || signal?.aborted) {
-          throw err;
-        }
-        lastStatus = 500;
-        lastErrorMsg = err?.message || String(err);
-        console.error(`Fetch failed for model ${model}:`, err);
-      }
-    }
-
-    if (!response || !response.ok) {
-      let parsedError = lastErrorMsg;
-      try {
-        const parsed = JSON.parse(lastErrorMsg);
-        parsedError = parsed.error?.message || parsed.error || lastErrorMsg;
-      } catch {
-        // Not JSON
-      }
-      return NextResponse.json({ error: parsedError }, { status: lastStatus });
-    }
-
-    // Pipe the SSE stream, forward client abort to upstream
-    const stream = new ReadableStream({
-      async start(controller) {
-        const reader = response!.body!.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        // Abort upstream reader when client disconnects
-        signal?.addEventListener("abort", () => {
-          reader.cancel().catch(() => {});
-          controller.close();
-        });
-
-        try {
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) {
-              if (buffer) {
-                const line = buffer.trim();
-                if (line.startsWith("data: ") && line !== "data: [DONE]") {
-                  try {
-                    const json = JSON.parse(line.slice(6));
-                    const token = json.choices?.[0]?.delta?.content;
-                    if (token) {
-                      controller.enqueue(new TextEncoder().encode(token));
-                    }
-                  } catch {}
-                }
-              }
-              break;
-            }
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split("\n");
-            buffer = lines.pop() || "";
-
-            for (const line of lines) {
-              const trimmed = line.trim();
-              if (!trimmed || trimmed === "data: [DONE]") continue;
-              if (trimmed.startsWith("data: ")) {
-                try {
-                  const json = JSON.parse(trimmed.slice(6));
-                  const token = json.choices?.[0]?.delta?.content;
-                  if (token) {
-                    controller.enqueue(new TextEncoder().encode(token));
-                  }
-                } catch {
-                  // Ignore partial chunk parse errors
-                }
-              }
-            }
-          }
-          controller.close();
-        } catch (err: any) {
-          // Swallow abort errors silently
-          if (controller.desiredSize !== null) {
-            controller.close();
-          }
-        }
-      },
+    // Delegate all model retry / fallback / streaming logic to the shared utility
+    const stream = await callOpenRouterWithFallback({
+      apiKey: OPENROUTER_API_KEY,
+      model: PRIMARY_MODEL,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userMessage },
+      ],
+      temperature: 0.7,
+      maxTokens: 3000,
+      clientSignal,
     });
 
     return new Response(stream, {
@@ -273,10 +142,13 @@ export async function POST(req: NextRequest) {
       },
     });
   } catch (err: any) {
-    // Don't surface abort as a 500 error
-    if (err?.name === "AbortError") {
+    if (err?.name === "AbortError" || clientSignal?.aborted) {
       return new Response(null, { status: 204 });
     }
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    console.error("[generate-readme] Unhandled error:", err);
+    return NextResponse.json(
+      { error: err.message || "An unexpected error occurred. Please try again." },
+      { status: 500 }
+    );
   }
 }
