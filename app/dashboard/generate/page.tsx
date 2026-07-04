@@ -213,7 +213,7 @@ export default function GeneratePage() {
         }
 
         setPhase("streaming");
-        toast.loading("Generating README… this may take up to 30s on free models.", { id: toastId });
+        toast.loading("RepoScribe AI is generating...", { id: toastId });
 
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
