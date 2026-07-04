@@ -1,40 +1,33 @@
-/**
- * lib/openrouter.ts
- *
- * Single source of truth for all OpenRouter AI calls in RepoScribe.
- *
- * Features:
- *  - Curated, verified list of free OpenRouter models (ordered best → most available)
- *  - Per-model first-token deadline (avoids hanging on a stalled model)
- *  - Exponential back-off with jitter between model retries on 429 / timeout
- *  - Stream health watchdog (closes stream if no byte arrives for WATCHDOG_MS)
- *  - Minimum-token validation (rejects empty/broken model responses)
- *  - Clean AbortController scoping — no listener leaks
- */
-
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-/** ms to wait for the FIRST token from a model before giving up on it */
 const FIRST_TOKEN_DEADLINE_MS = 25_000;
 
-/** ms of silence during an active stream before we close it */
 const WATCHDOG_MS = 12_000;
 
-/** Minimum number of characters the full response must contain to be considered valid */
 const MIN_RESPONSE_CHARS = 50;
 
-/** Base delay (ms) for exponential back-off between model retries */
 const BACKOFF_BASE_MS = 800;
 
-/** Verified, working OpenRouter free models — ordered by quality & availability */
 export const FREE_MODELS = [
-  "qwen/qwen-2.5-coder-32b-instruct:free",   // best for code
-  "meta-llama/llama-3.3-70b-instruct:free",  // best for prose
-  "deepseek/deepseek-r1-0528-qwen3-8b:free", // fast + reasoning
-  "microsoft/phi-4-reasoning-plus:free",     // strong instruction following
-  "mistralai/mistral-7b-instruct:free",      // reliable fallback
+  "qwen/qwen3-coder:free",
+  "nvidia/nemotron-3-ultra-550b-a55b:free",
+  "poolside/laguna-m.1:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "openai/gpt-oss-120b:free",
+  "nvidia/nemotron-3-super-120b-a12b:free",
+  "cohere/north-mini-code:free",
+  "qwen/qwen3-next-80b-a3b-instruct:free",
+  "google/gemma-4-31b-it:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "poolside/laguna-xs-2.1:free",
+  "poolside/laguna-xs.2:free",
+  "openai/gpt-oss-20b:free",
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+  "nvidia/nemotron-3-nano-30b-a3b:free",
+  "nvidia/nemotron-nano-9b-v2:free",
+  "meta-llama/llama-3.2-3b-instruct:free",
+  "liquid/lfm-2.5-1.2b-instruct:free",
 ] as const;
-
 export interface OpenRouterMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -43,26 +36,17 @@ export interface OpenRouterMessage {
 export interface OpenRouterOptions {
   apiKey: string;
   messages: OpenRouterMessage[];
-  /** Override the primary model. Falls back to FREE_MODELS automatically. */
   model?: string;
   temperature?: number;
   maxTokens?: number;
-  /** AbortSignal from the incoming Next.js request */
   clientSignal?: AbortSignal | null;
 }
 
-/** Sleep with optional jitter to spread retries */
 function sleep(ms: number, jitter = 0.3): Promise<void> {
   const actual = ms * (1 + (Math.random() - 0.5) * jitter);
   return new Promise((r) => setTimeout(r, actual));
 }
 
-/**
- * Call OpenRouter with automatic model fallback, backoff, and stream health monitoring.
- *
- * Returns a ReadableStream of plain text tokens ready to pipe to the client.
- * Throws if every model in the list fails.
- */
 export async function callOpenRouterWithFallback(
   opts: OpenRouterOptions
 ): Promise<ReadableStream<Uint8Array>> {
@@ -75,7 +59,6 @@ export async function callOpenRouterWithFallback(
     clientSignal,
   } = opts;
 
-  // Build the ordered list: primary model first, then free fallbacks
   const modelsToTry: string[] = [];
   if (model) modelsToTry.push(model);
   for (const m of FREE_MODELS) {
@@ -85,27 +68,22 @@ export async function callOpenRouterWithFallback(
   let lastError = "All AI models are currently unavailable. Please try again shortly.";
 
   for (let attempt = 0; attempt < modelsToTry.length; attempt++) {
-    // Stop immediately if the client disconnected
     if (clientSignal?.aborted) {
       throw new DOMException("Client aborted", "AbortError");
     }
 
     const currentModel = modelsToTry[attempt];
 
-    // Back-off before retrying (not on first attempt)
     if (attempt > 0) {
-      const delay = BACKOFF_BASE_MS * Math.pow(2, attempt - 1); // 800, 1600, 3200 …
+      const delay = BACKOFF_BASE_MS * Math.pow(2, attempt - 1);
       await sleep(delay);
     }
 
-    // Per-model AbortController — aborted on: first-token deadline OR client disconnect
     const modelController = new AbortController();
 
-    // Forward client disconnect into model controller
     const onClientAbort = () => modelController.abort();
     clientSignal?.addEventListener("abort", onClientAbort);
 
-    // First-token deadline: abort this model if no HTTP response in time
     const firstTokenTimer = setTimeout(
       () => modelController.abort(),
       FIRST_TOKEN_DEADLINE_MS
@@ -135,12 +113,9 @@ export async function callOpenRouterWithFallback(
       clearTimeout(firstTokenTimer);
       clientSignal?.removeEventListener("abort", onClientAbort);
 
-      // Re-throw if the CLIENT aborted (user navigated away)
       if (clientSignal?.aborted || err?.name === "AbortError" && clientSignal?.aborted) {
         throw err;
       }
-
-      // Model timed out or network error — try next
       console.warn(`[OpenRouter] Model ${currentModel} fetch error: ${err?.message}`);
       lastError = `Model ${currentModel} did not respond in time.`;
       continue;
@@ -149,7 +124,6 @@ export async function callOpenRouterWithFallback(
     clearTimeout(firstTokenTimer);
     clientSignal?.removeEventListener("abort", onClientAbort);
 
-    // Handle rate limits & server errors — retry next model
     if (!response.ok) {
       const errText = await response.text().catch(() => "");
       console.warn(`[OpenRouter] Model ${currentModel} → HTTP ${response.status}: ${errText}`);
@@ -167,9 +141,6 @@ export async function callOpenRouterWithFallback(
       continue;
     }
 
-    // ─── Build the streaming response ────────────────────────────────────────
-    // We wrap the upstream SSE stream, parse tokens, and emit raw text.
-    // A watchdog timer closes the stream if it stalls mid-generation.
     const upstream = response.body!;
 
     const stream = new ReadableStream<Uint8Array>({
@@ -185,7 +156,7 @@ export async function callOpenRouterWithFallback(
           if (streamClosed) return;
           streamClosed = true;
           if (watchdogTimer) clearTimeout(watchdogTimer);
-          try { controller.close(); } catch { /* already closed */ }
+          try { controller.close(); } catch {}
         }
 
         function resetWatchdog() {
@@ -197,7 +168,6 @@ export async function callOpenRouterWithFallback(
           }, WATCHDOG_MS);
         }
 
-        // Forward client disconnect into stream reader
         const onClientAbortStream = () => {
           reader.cancel().catch(() => {});
           closeController();
@@ -213,7 +183,6 @@ export async function callOpenRouterWithFallback(
             const { done, value } = await reader.read();
 
             if (done) {
-              // Flush any remaining buffer
               if (buffer.trim()) {
                 const line = buffer.trim();
                 if (line.startsWith("data: ") && line !== "data: [DONE]") {
@@ -224,7 +193,7 @@ export async function callOpenRouterWithFallback(
                       totalChars += token.length;
                       controller.enqueue(new TextEncoder().encode(token));
                     }
-                  } catch { /* ignore */ }
+                  } catch {}
                 }
               }
               break;
@@ -247,11 +216,10 @@ export async function callOpenRouterWithFallback(
                   totalChars += token.length;
                   controller.enqueue(new TextEncoder().encode(token));
                 }
-              } catch { /* partial chunk — skip */ }
+              } catch {}
             }
           }
         } catch (streamErr: any) {
-          // Swallow stream read errors (client disconnect, watchdog cancel)
           if (!clientSignal?.aborted) {
             console.warn(`[OpenRouter] Stream read error for ${currentModel}:`, streamErr?.message);
           }
@@ -260,9 +228,6 @@ export async function callOpenRouterWithFallback(
           closeController();
         }
 
-        // Validate that we received a meaningful response
-        // If the model returned basically nothing, log a warning.
-        // The caller stream has already closed; this is informational only.
         if (totalChars < MIN_RESPONSE_CHARS && !clientSignal?.aborted) {
           console.warn(
             `[OpenRouter] Model ${currentModel} returned only ${totalChars} chars — possibly empty response.`
@@ -274,6 +239,5 @@ export async function callOpenRouterWithFallback(
     return stream;
   }
 
-  // Every model failed
   throw new Error(lastError);
 }
