@@ -1,10 +1,10 @@
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-const FIRST_TOKEN_DEADLINE_MS = 25_000;
+const FIRST_TOKEN_DEADLINE_MS = 35_000;
 
-const WATCHDOG_MS = 12_000;
+const WATCHDOG_MS = 30_000;
 
-const MIN_RESPONSE_CHARS = 50;
+const MIN_RESPONSE_CHARS = 500;
 
 const BACKOFF_BASE_MS = 800;
 

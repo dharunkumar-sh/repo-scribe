@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { callOpenRouterWithFallback } from "@/lib/openrouter";
 
 /** Allow up to 90 seconds for free models that can be slow to respond */
-export const maxDuration = 90;
+export const maxDuration = 120;
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY!;
 const PRIMARY_MODEL = process.env.OPENROUTER_MODEL || undefined;
@@ -95,7 +95,7 @@ Generate a stunning, personalized profile README now.`;
         { role: "user", content: userMessage },
       ],
       temperature: 0.8,
-      maxTokens: 2500,
+      maxTokens: 4000,
       clientSignal,
     });
 

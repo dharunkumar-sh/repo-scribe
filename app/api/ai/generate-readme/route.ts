@@ -3,7 +3,7 @@ import { buildIntelligentSystemPrompt } from "@/lib/templateEngine";
 import { callOpenRouterWithFallback } from "@/lib/openrouter";
 
 /** Allow up to 90 seconds for free models that can be slow to respond */
-export const maxDuration = 90;
+export const maxDuration = 120;
 
 const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY!;
 const PRIMARY_MODEL = process.env.OPENROUTER_MODEL || undefined;
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
         { role: "user", content: userMessage },
       ],
       temperature: 0.7,
-      maxTokens: 3000,
+      maxTokens: 8000,
       clientSignal,
     });
 
